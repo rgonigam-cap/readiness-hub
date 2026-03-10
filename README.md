@@ -303,7 +303,7 @@ This project uses [Semantic Versioning](https://semver.org/) (Major.Minor.Patch)
 - **Minor**: New features and enhancements (backward-compatible)
 - **Patch**: Bug fixes and small tweaks
 
-Current version: **1.11.0** (defined in `ConfigConstants.html`)
+Current version: **1.11.1** (defined in `ConfigConstants.html`)
 
 ### Release Process
 
