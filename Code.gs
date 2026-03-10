@@ -21,11 +21,11 @@
  * 5. (Optional) Configure IT Chatbot integration:
  *    - CHATBOT_WEBAPP_URL: URL to the IT Chatbot web app
  *    - CHATBOT_API_KEY: API key for the chatbot
- * 6. (Optional) Configure CAPWATCH auto-download:
+ * 6. Deploy as web app and set up hourly trigger for syncDriveToSheet()
+ * 7. (Optional) Configure CAPWATCH auto-download (requires deployment first):
  *    - CAPWATCH_ORGID: Your CAP organization ID (e.g., '223')
- *    - Run setCapwatchAuthorization() once to store eServices credentials
+ *    - Run setCapwatchAuthorization() to get the setup URL, then visit it to enter credentials
  *    - Run setupCapwatchTrigger() to create a daily download+sync trigger
- * 7. Deploy as web app and set up hourly trigger for syncDriveToSheet()
  *
  * See README.md for detailed setup instructions.
  */
@@ -204,6 +204,17 @@ function doGet(e) {
     Logger.log("User: " + userName + " (" + userEmail + ")");
     Logger.log("Access Time: " + startTime.toISOString());
     Logger.log("====================================");
+
+    // Owner-only CAPWATCH credential setup page
+    if (e && e.parameter && e.parameter.page === 'capwatch-setup') {
+      if (!isScriptOwner_()) {
+        throw new Error('Access denied. Only the script owner can configure CAPWATCH credentials.');
+      }
+      const setupHtml = HtmlService.createHtmlOutput(CAPWATCH_SETUP_HTML_)
+        .setTitle('CAPWATCH Setup')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+      return setupHtml;
+    }
 
     const appShortName = getConfig('APP_SHORT_NAME', 'Readiness Hub');
     const htmlOutput = HtmlService.createTemplateFromFile('Index')
@@ -1690,28 +1701,140 @@ function setupGoogleAdoptionTrigger() {
 // The default trigger runs at 4 AM Eastern (3 AM CST) to avoid this.
 
 /**
- * One-time setup: store eServices credentials for CAPWATCH API access.
- * Run this from the Apps Script editor. Credentials are stored per-user
- * in UserProperties (not shared with other users or visible in Script Properties).
+ * Check if the current user is the script owner/deployer.
+ * With executeAs: USER_DEPLOYING, getEffectiveUser() returns the owner
+ * and getActiveUser() returns the actual visitor. They match only when
+ * the visitor IS the owner.
+ * @returns {boolean}
+ * @private
  */
-function setCapwatchAuthorization() {
-  const username = Browser.inputBox('CAPWATCH Setup', 'Enter your eServices username:', Browser.Buttons.OK_CANCEL);
-  if (username === 'cancel' || !username) {
-    Logger.log('CAPWATCH authorization setup cancelled (username step).');
-    return;
-  }
+function isScriptOwner_() {
+  const active = Session.getActiveUser().getEmail();
+  const effective = Session.getEffectiveUser().getEmail();
+  return active !== '' && active === effective;
+}
 
-  const password = Browser.inputBox('CAPWATCH Setup', 'Enter your eServices password:', Browser.Buttons.OK_CANCEL);
-  if (password === 'cancel' || !password) {
-    Logger.log('CAPWATCH authorization setup cancelled (password step).');
-    return;
+/**
+ * Save CAPWATCH credentials from the setup page.
+ * Called via google.script.run from the CAPWATCH setup HTML page.
+ * @param {string} username - eServices username
+ * @param {string} password - eServices password
+ * @returns {Object} Result with success boolean and message
+ */
+function saveCapwatchAuthorization(username, password) {
+  if (!isScriptOwner_()) {
+    return { success: false, message: 'Only the script owner can configure CAPWATCH credentials.' };
   }
-
+  if (!username || !password) {
+    return { success: false, message: 'Username and password are required.' };
+  }
   const authorization = Utilities.base64Encode(username + ':' + password);
   PropertiesService.getUserProperties().setProperty('CAPWATCH_AUTHORIZATION', authorization);
-
   Logger.log('CAPWATCH authorization saved successfully.');
-  Browser.msgBox('CAPWATCH Setup', 'Authorization saved. You can now run getCapwatch() to test.', Browser.Buttons.OK);
+  return { success: true, message: 'Authorization saved. You can now run getCapwatch() to test.' };
+}
+
+/** Inline HTML for the owner-only CAPWATCH credential setup page. @private */
+const CAPWATCH_SETUP_HTML_ = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 40px 20px; background: #f8f9fa; }
+    .container { max-width: 400px; margin: 0 auto; background: white; padding: 32px;
+                 border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    h2 { margin: 0 0 8px; color: #202124; font-size: 20px; }
+    p.subtitle { margin: 0 0 24px; color: #5f6368; font-size: 13px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 13px; color: #202124; }
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 10px; box-sizing: border-box;
+      border: 1px solid #dadce0; border-radius: 4px; font-size: 14px; }
+    input:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+    .buttons { margin-top: 24px; text-align: right; }
+    button { padding: 10px 24px; border: none; border-radius: 4px;
+             cursor: pointer; font-size: 14px; font-weight: 500; }
+    .btn-primary { background: #1a73e8; color: white; }
+    .btn-primary:hover { background: #1557b0; }
+    .btn-primary:disabled { background: #dadce0; color: #80868b; cursor: not-allowed; }
+    #status { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; font-size: 13px; }
+    .status-success { background: #e6f4ea; color: #137333; }
+    .status-error { background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>CAPWATCH Setup</h2>
+    <p class="subtitle">Enter your CAP eServices credentials. These are stored securely in your user properties.</p>
+    <div class="form-group">
+      <label for="username">eServices Username</label>
+      <input type="text" id="username" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label for="password">eServices Password</label>
+      <input type="password" id="password" autocomplete="off">
+    </div>
+    <div id="status"></div>
+    <div class="buttons">
+      <button class="btn-primary" id="saveBtn" onclick="save()">Save Credentials</button>
+    </div>
+  </div>
+  <script>
+    function save() {
+      var btn = document.getElementById('saveBtn');
+      var status = document.getElementById('status');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      status.style.display = 'none';
+      var username = document.getElementById('username').value.trim();
+      var password = document.getElementById('password').value;
+      if (!username || !password) {
+        showStatus('Username and password are required.', false);
+        btn.disabled = false;
+        btn.textContent = 'Save Credentials';
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function(result) {
+          showStatus(result.message, result.success);
+          if (result.success) {
+            btn.style.display = 'none';
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Save Credentials';
+          }
+        })
+        .withFailureHandler(function(err) {
+          showStatus('Error: ' + err.message, false);
+          btn.disabled = false;
+          btn.textContent = 'Save Credentials';
+        })
+        .saveCapwatchAuthorization(username, password);
+    }
+    function showStatus(msg, success) {
+      var el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = success ? 'status-success' : 'status-error';
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>`;
+
+/**
+ * One-time setup: store eServices credentials for CAPWATCH API access.
+ * Run this from the Apps Script editor to get the setup page URL.
+ * Visit the URL while logged in as the script owner to enter credentials.
+ * Credentials are stored per-user in UserProperties (not shared with other users).
+ */
+function setCapwatchAuthorization() {
+  const url = ScriptApp.getService().getUrl();
+  if (url) {
+    Logger.log('To configure CAPWATCH credentials, visit: ' + url + '?page=capwatch-setup');
+  } else {
+    Logger.log('To configure CAPWATCH credentials, deploy the web app first, then visit the deployment URL with ?page=capwatch-setup');
+  }
+  Logger.log('You must be logged in as the script owner.');
 }
 
 /**
