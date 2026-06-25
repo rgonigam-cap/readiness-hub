@@ -269,6 +269,153 @@ const FeedbackTab = ({
   );
 };
 
+// CAPWATCH Setup Tab Component
+// Owner-only: stores eServices credentials (Base64-encoded) in the owner's
+// UserProperties via saveCapwatchCredentials(). The credential is never
+// displayed back; only configured/not-configured status is shown.
+const CapwatchSetupTab = ({ status, onSaved }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState(null);
+
+  const hasCredentials = !!(status && status.hasCredentials);
+  const orgId = status && status.orgId;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!username.trim() || !password) {
+      setSaveResult({ success: false, message: 'Please enter both your eServices username and password.' });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveResult(null);
+
+    if (window.google && window.google.script) {
+      window.google.script.run
+        .withSuccessHandler((result) => {
+          setIsSaving(false);
+          if (result && result.success) {
+            setSaveResult({ success: true, message: 'CAPWATCH credentials saved.' });
+            setUsername('');
+            setPassword('');
+            if (onSaved) onSaved();
+          } else {
+            setSaveResult({ success: false, message: 'Failed to save credentials. Please try again.' });
+          }
+        })
+        .withFailureHandler((error) => {
+          setIsSaving(false);
+          setSaveResult({ success: false, message: 'Error: ' + (error.message || error.toString()) });
+        })
+        .saveCapwatchCredentials(username.trim(), password);
+    } else {
+      setIsSaving(false);
+      setSaveResult({ success: false, message: 'Unable to connect to server. Please refresh and try again.' });
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <h3 className="font-bold text-slate-800 mb-3 flex items-center border-b pb-2">
+          <Icon name="Settings" className="w-4 h-4 mr-2 text-blue-600" />
+          CAPWATCH Auto-Download Credentials
+        </h3>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-slate-700">
+          <p className="mb-2">Store the CAP eServices username and password used to download CAPWATCH data directly from the eServices API. The credentials are encoded and saved in the app owner's account properties — never in Script Properties or source code, and never shown back here.</p>
+          <p className="text-xs">Only the app owner can set these. They are read by <span className="font-mono bg-slate-200 px-1 rounded">checkCapwatchCredentials()</span> and used by <span className="font-mono bg-slate-200 px-1 rounded">getCapwatch()</span> and the <span className="font-mono bg-slate-200 px-1 rounded">downloadAndSync()</span> daily trigger.</p>
+        </div>
+      </section>
+
+      {/* Current status */}
+      <div className={`p-3 rounded-lg border flex items-start gap-3 ${hasCredentials ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+        <Icon name={hasCredentials ? 'CheckCircle' : 'AlertCircle'} className={`w-5 h-5 mt-0.5 flex-shrink-0 ${hasCredentials ? 'text-green-600' : 'text-amber-600'}`} />
+        <div className="text-sm">
+          <p className={`font-medium ${hasCredentials ? 'text-green-800' : 'text-amber-800'}`}>
+            {hasCredentials ? 'Credentials configured' : 'Not configured'}
+          </p>
+          <p className={`text-xs ${hasCredentials ? 'text-green-700' : 'text-amber-700'}`}>
+            {orgId ? ('Wing/unit ORGID: ' + orgId) : 'CAPWATCH_ORGID is not set in Script Properties yet.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Success message */}
+      {saveResult?.success && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3">
+          <Icon name="CheckCircle" className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-green-800">Saved</p>
+            <p className="text-sm text-green-700">{saveResult.message}</p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <div>
+          <label htmlFor="capwatch-username" className="block text-sm font-medium text-slate-700 mb-1">eServices Username</label>
+          <input
+            id="capwatch-username"
+            type="text"
+            autoComplete="off"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Your CAP eServices username"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="capwatch-password" className="block text-sm font-medium text-slate-700 mb-1">eServices Password</label>
+          <input
+            id="capwatch-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your CAP eServices password"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        {/* Error message */}
+        {saveResult && !saveResult.success && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+            <Icon name="AlertCircle" className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">Could Not Save</p>
+              <p className="text-sm text-red-700">{saveResult.message}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={isSaving || !username.trim() || !password}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Icon name="Save" className="w-4 h-4" />
+                {hasCredentials ? 'Update Credentials' : 'Save Credentials'}
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 // Reference & Help Modal
 // Displays context-aware help with tabs for each app section
 const ReferenceModal = ({
@@ -284,6 +431,7 @@ const ReferenceModal = ({
   availableUnits
 }) => {
   const [activeReferenceTab, setActiveReferenceTab] = useState(activeTab || 'home');
+  const [capwatchStatus, setCapwatchStatus] = useState(null);
 
   // Sync with activeTab when modal opens
   React.useEffect(() => {
@@ -291,6 +439,23 @@ const ReferenceModal = ({
       setActiveReferenceTab(activeTab);
     }
   }, [isOpen, activeTab]);
+
+  // Load CAPWATCH setup status when the modal opens (owner-only; the backend
+  // returns { isAdmin: false } for everyone else, so the tab stays hidden).
+  const loadCapwatchStatus = React.useCallback(() => {
+    if (window.google && window.google.script) {
+      window.google.script.run
+        .withSuccessHandler((s) => setCapwatchStatus(s))
+        .withFailureHandler(() => setCapwatchStatus({ isAdmin: false }))
+        .getCapwatchSetupStatus();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      loadCapwatchStatus();
+    }
+  }, [isOpen, loadCapwatchStatus]);
 
   if (!isOpen) return null;
 
@@ -303,6 +468,11 @@ const ReferenceModal = ({
     { id: 'org', label: 'Org Chart', icon: 'Network' },
     { id: 'feedback', label: 'Feedback', icon: 'MessageSquare' }
   ];
+
+  // Owner-only: surface the CAPWATCH credential setup tab.
+  if (capwatchStatus?.isAdmin) {
+    tabs.push({ id: 'capwatch', label: 'CAPWATCH Setup', icon: 'Settings' });
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Help & Reference" maxWidthClass="max-w-4xl">
@@ -932,6 +1102,11 @@ const ReferenceModal = ({
             availableUnits={availableUnits}
             onClose={onClose}
           />
+        )}
+
+        {/* CAPWATCH SETUP TAB (owner only) */}
+        {activeReferenceTab === 'capwatch' && capwatchStatus?.isAdmin && (
+          <CapwatchSetupTab status={capwatchStatus} onSaved={loadCapwatchStatus} />
         )}
 
       </div>

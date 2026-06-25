@@ -1,6 +1,6 @@
 # CAP Readiness Hub
 
-![Version](https://img.shields.io/badge/version-1.11.0-blue)
+![Version](https://img.shields.io/badge/version-1.11.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 A Google Apps Script web application for Civil Air Patrol units to track member readiness, cadet progression, senior member qualifications, and emergency services status.
@@ -223,9 +223,9 @@ If you don't already have CAPWATCH files being placed in your `SOURCE_FOLDER_ID`
 
 1. In Apps Script: Go to **Project Settings** > **Script Properties**
 2. Set `CAPWATCH_ORGID` to your organization ID (e.g., `223` for Michigan Wing)
-3. In the Apps Script editor, select `setCapwatchAuthorization` from the function dropdown and click **Run**
-4. Enter your eServices username and password when prompted
-5. Test by selecting `getCapwatch` and clicking **Run** — files should appear in your `SOURCE_FOLDER_ID` folder
+3. Open the deployed web app **as the owner** (the Google account you deployed it under). Click the **?** Help icon in the bottom-right corner of the app, then open the **CAPWATCH Setup** tab (visible only to the owner)
+4. Enter your eServices username and password, then click **Save** — they are encoded and stored securely in your account's user properties (never in Script Properties or source)
+5. Test by selecting `getCapwatch` in the Apps Script editor and clicking **Run** — files should appear in your `SOURCE_FOLDER_ID` folder
 
 ### Automated Daily Download + Sync
 
@@ -243,7 +243,7 @@ The trigger time avoids the CAPWATCH API daily blackout window (12:00–2:30 AM 
 |----------|-------------|---------|
 | `CAPWATCH_ORGID` | Your CAP organization ID | `223` |
 
-**Credentials** are stored per-user in UserProperties (not in Script Properties). Each admin who needs to run the download must set their own credentials via `setCapwatchAuthorization()`.
+**Credentials** are stored in the **app owner's** UserProperties — not in Script Properties or source. Because the web app executes as the owner (**Execute as: Me**), the **CAPWATCH Setup** tab appears only to the owner, and the credentials it saves are the ones used by the owner's daily download trigger and `getCapwatch()`.
 
 ## Optional: Cadet Rank Insignia Images
 
@@ -303,7 +303,7 @@ This project uses [Semantic Versioning](https://semver.org/) (Major.Minor.Patch)
 - **Minor**: New features and enhancements (backward-compatible)
 - **Patch**: Bug fixes and small tweaks
 
-Current version: **1.11.0** (defined in `ConfigConstants.html`)
+Current version: **1.11.1** (defined in `ConfigConstants.html`)
 
 ### Release Process
 
