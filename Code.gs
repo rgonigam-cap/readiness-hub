@@ -23,7 +23,7 @@
  *    - CHATBOT_API_KEY: API key for the chatbot
  * 6. (Optional) Configure CAPWATCH auto-download:
  *    - CAPWATCH_ORGID: Your CAP organization ID (e.g., '223')
- *    - Run setCapwatchAuthorization() once to store eServices credentials
+ *    - In the deployed web app (as the owner): open Help > CAPWATCH Setup to store eServices credentials
  *    - Run setupCapwatchTrigger() to create a daily download+sync trigger
  * 7. Deploy as web app and set up hourly trigger for syncDriveToSheet()
  *
@@ -1683,35 +1683,100 @@ function setupGoogleAdoptionTrigger() {
 //
 // Setup:
 // 1. Set CAPWATCH_ORGID in Script Properties (e.g., '223')
-// 2. Run setCapwatchAuthorization() to store your eServices credentials
+// 2. In the deployed web app (as the owner): Help > CAPWATCH Setup tab to store eServices credentials
 // 3. Run setupCapwatchTrigger() to schedule daily download+sync
 //
 // Note: CAPWATCH API has a daily blackout window from 12:00-2:30 AM CST.
 // The default trigger runs at 4 AM Eastern (3 AM CST) to avoid this.
 
 /**
- * One-time setup: store eServices credentials for CAPWATCH API access.
- * Run this from the Apps Script editor. Credentials are stored per-user
- * in UserProperties (not shared with other users or visible in Script Properties).
+ * Determine whether the current request comes from the app owner.
+ *
+ * The web app executes as the owner (USER_DEPLOYING), so getEffectiveUser()
+ * is always the owner, while getActiveUser() resolves to the accessing user
+ * (the app is restricted to DOMAIN access, so they share the owner's domain).
+ * Only the owner — whose UserProperties hold the credentials that the daily
+ * trigger and getCapwatch() read — may configure CAPWATCH credentials.
+ * Denies by default if identity cannot be resolved.
+ *
+ * @returns {boolean} True only when the accessing user is the app owner.
  */
-function setCapwatchAuthorization() {
-  const username = Browser.inputBox('CAPWATCH Setup', 'Enter your eServices username:', Browser.Buttons.OK_CANCEL);
-  if (username === 'cancel' || !username) {
-    Logger.log('CAPWATCH authorization setup cancelled (username step).');
-    return;
+function isCapwatchAdmin_() {
+  try {
+    const active = (Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+    const effective = (Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
+    return !!active && !!effective && active === effective;
+  } catch (e) {
+    return false;
   }
+}
 
-  const password = Browser.inputBox('CAPWATCH Setup', 'Enter your eServices password:', Browser.Buttons.OK_CANCEL);
-  if (password === 'cancel' || !password) {
-    Logger.log('CAPWATCH authorization setup cancelled (password step).');
-    return;
+/**
+ * Report CAPWATCH setup status for the web app's setup UI. Never returns
+ * the stored credential itself.
+ *
+ * @returns {Object} { isAdmin: false } for non-owners; for the owner,
+ *   { isAdmin: true, hasCredentials: boolean, orgId: string }.
+ */
+function getCapwatchSetupStatus() {
+  if (!isCapwatchAdmin_()) {
+    return { isAdmin: false };
+  }
+  return {
+    isAdmin: true,
+    hasCredentials: !!PropertiesService.getUserProperties().getProperty('CAPWATCH_AUTHORIZATION'),
+    orgId: getConfig('CAPWATCH_ORGID', '')
+  };
+}
+
+/**
+ * Store eServices credentials for CAPWATCH API access. Called from the web
+ * app's Help > CAPWATCH Setup tab (owner only). Credentials are Base64-encoded
+ * and saved in the owner's UserProperties — never in Script Properties or
+ * source — and are read back by checkCapwatchCredentials().
+ *
+ * @param {string} username eServices username
+ * @param {string} password eServices password
+ * @returns {Object} { success: true }
+ * @throws {Error} If the caller is not the owner, or a field is missing.
+ */
+function saveCapwatchCredentials(username, password) {
+  if (!isCapwatchAdmin_()) {
+    throw new Error('Not authorized. Only the app owner can configure CAPWATCH credentials.');
+  }
+  if (!username || !password) {
+    throw new Error('Both username and password are required.');
   }
 
   const authorization = Utilities.base64Encode(username + ':' + password);
   PropertiesService.getUserProperties().setProperty('CAPWATCH_AUTHORIZATION', authorization);
 
-  Logger.log('CAPWATCH authorization saved successfully.');
-  Browser.msgBox('CAPWATCH Setup', 'Authorization saved. You can now run getCapwatch() to test.', Browser.Buttons.OK);
+  // Log the event to the Logs sheet — without recording the credentials.
+  try {
+    let userEmail = 'Unknown';
+    let userName = 'Unknown';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || 'Unknown';
+      userName = getUserFullName(userEmail);
+    } catch (e) {}
+    logWebAppAccess({
+      timestamp: new Date(),
+      userName: userName,
+      userEmail: userEmail,
+      eventType: 'CAPWATCH_CREDENTIALS_UPDATED',
+      status: 'SUCCESS',
+      durationSeconds: 0,
+      queryString: '',
+      parameters: '{}',
+      errorMessage: '',
+      errorStack: ''
+    });
+  } catch (e) {
+    Logger.log('Could not log CAPWATCH_CREDENTIALS_UPDATED: ' + e.message);
+  }
+
+  Logger.log('CAPWATCH authorization saved successfully (via web app setup).');
+  return { success: true };
 }
 
 /**
@@ -1722,7 +1787,7 @@ function setCapwatchAuthorization() {
 function checkCapwatchCredentials() {
   const auth = PropertiesService.getUserProperties().getProperty('CAPWATCH_AUTHORIZATION');
   if (!auth) {
-    throw new Error('CAPWATCH credentials not configured. Run setCapwatchAuthorization() first.');
+    throw new Error('CAPWATCH credentials not configured. In the web app, open Help > CAPWATCH Setup (owner only) to add them.');
   }
   return auth;
 }
@@ -1732,7 +1797,7 @@ function checkCapwatchCredentials() {
  * to the SOURCE_FOLDER_ID Google Drive folder.
  *
  * Requires CAPWATCH_ORGID in Script Properties and credentials
- * stored via setCapwatchAuthorization().
+ * stored via the web app's Help > CAPWATCH Setup tab (owner only).
  *
  * @returns {Object} Summary with filesExtracted and duration
  */
@@ -1771,7 +1836,7 @@ function getCapwatch() {
 
       const code = response.getResponseCode();
       if (code === 200) break;
-      if (code === 401) throw new Error('Authentication failed (401). Check your eServices credentials — run setCapwatchAuthorization() to update.');
+      if (code === 401) throw new Error('Authentication failed (401). Check your eServices credentials — update them in the web app via Help > CAPWATCH Setup.');
       if (code === 403) throw new Error('Access denied (403). Your account may not have CAPWATCH API access for ORGID ' + orgId + '.');
       if (attempt === maxAttempts) throw new Error('CAPWATCH API returned HTTP ' + code + ' after ' + maxAttempts + ' attempts.');
 
