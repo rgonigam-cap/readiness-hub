@@ -6,6 +6,7 @@
 README.md
 LICENSE
 screenshots/**
+docs/**
 
 # Claude/IDE files
 .claude/**
