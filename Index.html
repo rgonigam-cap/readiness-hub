@@ -2021,6 +2021,149 @@
           return rows.sort((a, b) => a.daysUntil - b.daysUntil);
         };
 
+        // Red Service Ribbon longevity status per CAPR 39-3 (ICL18-02/19-02/21-03) para 21.b.
+        // Awards vest at the END of N years of service, so we floor to whole completed years.
+        const getRedServiceRibbonStatus = (joinedRaw, orgJoinedRaw) => {
+          const joinDate = parseDateSafe(joinedRaw);
+          const orgJoinDate = parseDateSafe(orgJoinedRaw);
+          // Use the EARLIEST recorded join date. CAPWATCH's OrgJoined is the member's
+          // original CAP join date (it persists across membership lapses AND unit
+          // transfers), while Joined resets to the most recent rejoin. Counting from
+          // the earliest reflects total service from original join — matching how the
+          // awards board adjudicates longevity. The lapse gap is NOT subtracted
+          // (CAPWATCH carries no gap-duration data; MbrTransfer logs unit transfers
+          // only), which is consistent with how these awards are determined in practice.
+          let serviceStart = null;
+          if (joinDate && orgJoinDate) {
+            serviceStart = orgJoinDate < joinDate ? orgJoinDate : joinDate;
+          } else {
+            serviceStart = orgJoinDate || joinDate;
+          }
+          if (!serviceStart) return { valid: false };
+          const priorService = !!(joinDate && orgJoinDate && orgJoinDate < joinDate);
+          const today = new Date();
+          // Whole completed years of service — calendar-accurate so the award vests
+          // exactly on the anniversary (avoids the 365.25-day rounding off-by-one).
+          let years = today.getFullYear() - serviceStart.getFullYear();
+          if (today.getMonth() < serviceStart.getMonth() ||
+              (today.getMonth() === serviceStart.getMonth() && today.getDate() < serviceStart.getDate())) {
+            years -= 1;
+          }
+
+          // Current entitlement
+          let tier, entitlement, claspCount = 0, deviceNumber = null;
+          if (years < 2) {
+            tier = 'none';
+            entitlement = 'Not yet eligible';
+          } else if (years < 5) {
+            tier = 'ribbon';
+            entitlement = 'Red Service Ribbon';
+          } else if (years < 20) {
+            claspCount = Math.min(3, Math.floor(years / 5)); // 1 (5yr), 2 (10yr), 3 (15yr)
+            tier = 'clasp' + claspCount;
+            entitlement = `Red Service Ribbon + ${claspCount} Bronze Clasp${claspCount > 1 ? 's' : ''}`;
+          } else {
+            // At 20+ years the numbered longevity device replaces the clasps.
+            deviceNumber = Math.floor(years / 5) * 5; // 20, 25, 30, ...
+            tier = 'device';
+            entitlement = `Longevity Device (${deviceNumber})`;
+          }
+
+          // Next milestone (label + date it is earned)
+          let nextThreshold, nextLabel;
+          if (years < 2) {
+            nextThreshold = 2;
+            nextLabel = 'Red Service Ribbon';
+          } else if (years < 5) {
+            nextThreshold = 5;
+            nextLabel = '1st Bronze Clasp';
+          } else {
+            nextThreshold = (Math.floor(years / 5) + 1) * 5; // 10, 15, 20, 25, ...
+            nextLabel = nextThreshold < 20
+              ? `${nextThreshold === 10 ? '2nd' : '3rd'} Bronze Clasp`
+              : `Longevity Device (${nextThreshold})`;
+          }
+          const nextDate = new Date(serviceStart);
+          nextDate.setFullYear(serviceStart.getFullYear() + nextThreshold);
+          const daysUntilNext = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+
+          return {
+            valid: true,
+            serviceStart,
+            joinDate,
+            orgJoinDate,
+            priorService,
+            years,
+            tier,
+            entitlement,
+            claspCount,
+            deviceNumber,
+            nextLabel,
+            nextDate,
+            daysUntilNext,
+            approaching: daysUntilNext >= 0 && daysUntilNext <= 90
+          };
+        };
+
+        const generateRedServiceRibbonReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          if (!memberPool.length) return [];
+
+          // Red Service Ribbon applies to cadets and senior members alike (incl. LIFE).
+          const members = memberPool.filter(m => {
+            const memberType = (m.Type || m.TYPE || '').toUpperCase();
+            return memberType === 'CADET' || memberType === 'SENIOR' || memberType === 'LIFE';
+          });
+
+          const rows = members.map(member => {
+            const status = getRedServiceRibbonStatus(member.Joined, member.OrgJoined);
+            const base = {
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              memberType: member.Type || member.TYPE || 'UNKNOWN',
+              rank: member.Rank || 'N/A',
+              unit: member.memberUnitName || 'Unknown'
+            };
+
+            if (!status.valid) {
+              return {
+                ...base,
+                joined: 'N/A',
+                years: '—',
+                yearsSort: -1,
+                entitlement: 'Join date unavailable',
+                nextMilestone: '—',
+                nextDate: 'N/A',
+                daysUntilNext: null,
+                tier: 'unknown',
+                approaching: false,
+                priorService: false
+              };
+            }
+
+            return {
+              ...base,
+              joined: formatShortDate(status.serviceStart),
+              years: status.years,
+              yearsSort: status.years,
+              entitlement: status.entitlement,
+              nextMilestone: status.nextLabel,
+              nextDate: formatShortDate(status.nextDate),
+              daysUntilNext: status.daysUntilNext,
+              tier: status.tier,
+              approaching: status.approaching,
+              priorService: status.priorService
+            };
+          });
+
+          // Hide members not yet eligible (under 2 years) unless they are within
+          // 90 days of earning the Red Service Ribbon. Earned members and rows with
+          // an unknown join date (data-quality surfacing) are always kept.
+          return rows
+            .filter(r => !(r.tier === 'none' && !r.approaching))
+            .sort((a, b) => b.yearsSort - a.yearsSort);
+        };
+
           const generateCadetProtectionReport = (membersOverride = null) => {
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             if (!memberPool.length || !getCadetProtectionStatus) return [];
@@ -4718,6 +4861,15 @@
             accent: 'purple',
             tags: ['cadet', 'senior', 'readiness'],
             generate: (members) => generateCACRepresentativesReport(members)
+          },
+          {
+            id: 'red-service-ribbon',
+            title: 'Red Service Ribbon',
+            description: 'Longevity status per CAPR 39-3 §21.b — ribbon, bronze clasps, and longevity device by years of service',
+            icon: 'Award',
+            accent: 'amber',
+            tags: ['cadet', 'senior', 'membership'],
+            generate: (members) => generateRedServiceRibbonReport(members)
           }
         ];
 
@@ -6399,6 +6551,18 @@
               { header: 'Unit', dataKey: 'unit' },
               { header: 'Expires', dataKey: 'expiration' },
               { header: 'Days', dataKey: 'daysUntil' }
+            ],
+            'red-service-ribbon': [
+              { header: 'Member Name', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Service Since', dataKey: 'joined' },
+              { header: 'Years', dataKey: 'years' },
+              { header: 'Entitlement', dataKey: 'entitlement' },
+              { header: 'Next Milestone', dataKey: 'nextMilestone' },
+              { header: 'Next Date', dataKey: 'nextDate' }
             ]
             };
 
