@@ -2485,16 +2485,36 @@
           const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
           if (!memberPool.length) return [];
 
-          const cadets = memberPool.filter(m => {
+          // Include cadets and senior members (incl. LIFE). The Encampment Ribbon is
+          // earned by cadets for completing an encampment and by seniors for serving on
+          // encampment staff; CadetActivities.txt records ENCAMP entries for both.
+          const members = memberPool.filter(m => {
             const memberType = (m.Type || m.TYPE || '').toUpperCase();
-            return memberType === 'CADET';
+            return memberType === 'CADET' || memberType === 'SENIOR' || memberType === 'LIFE';
           });
+
+          // Encampment Ribbon (CAPR 39-3 §20.e): the first encampment earns the ribbon,
+          // each additional encampment adds a clasp (retroactive; clasps for repetitive
+          // awards). Clasps roll up per the CAPR 39-3 device convention: 1 silver clasp
+          // is worn in lieu of 5 bronze clasps.
+          const encampmentRibbonLabel = (n) => {
+            if (n <= 0) return '—';
+            if (n === 1) return 'Encampment Ribbon';
+            const clasps = n - 1;
+            const silver = Math.floor(clasps / 5);
+            const bronze = clasps % 5;
+            const parts = [];
+            if (silver > 0) parts.push(`${silver} silver clasp${silver > 1 ? 's' : ''}`);
+            if (bronze > 0) parts.push(`${bronze} bronze clasp${bronze > 1 ? 's' : ''}`);
+            return `Encampment Ribbon + ${parts.join(', ')}`;
+          };
 
           const rows = [];
 
-          cadets.forEach(cadet => {
+          members.forEach(member => {
+            const memberType = (member.Type || member.TYPE || 'UNKNOWN').toUpperCase();
             const activities = dataFiles.cadetActivities ? dataFiles.cadetActivities.filter(a =>
-              String(a.CAPID).trim() === String(cadet.CAPID).trim() &&
+              String(a.CAPID).trim() === String(member.CAPID).trim() &&
               (a.Type || '').toUpperCase().includes('ENCAMP')
             ) : [];
 
@@ -2505,15 +2525,17 @@
             }));
 
             rows.push({
-              capid: cadet.CAPID,
-              memberName: `${cadet.NameLast}, ${cadet.NameFirst}`,
-              unit: cadet.memberUnitName,
-              rank: cadet.Rank,
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              memberType,
+              unit: member.memberUnitName,
+              rank: member.Rank,
               encampmentStatus: encampments.length > 0 ? 'Completed' : 'Not Completed',
               completionDate: encampments.length > 0 ? (encampments[0].completed || 'N/A') : 'N/A',
               hasEncampment: encampments.length > 0,
               encampments,
-              count: encampments.length
+              count: encampments.length,
+              encampmentRibbon: encampmentRibbonLabel(encampments.length)
             });
           });
 
@@ -4508,10 +4530,10 @@
           {
             id: 'encampment-status',
             title: 'Encampment Completion Status',
-            description: 'All cadets in unit showing whether they have completed an encampment',
+            description: 'Cadets (encampment completion) and senior members (encampment staff service) with Encampment Ribbon entitlement per CAPR 39-3 §20.e',
             icon: 'Tent',
             accent: 'blue',
-            tags: ['cadet', 'activities', 'readiness'],
+            tags: ['cadet', 'senior', 'activities', 'readiness'],
             generate: (members) => generateEncampmentReport(members)
           },
           {
@@ -6144,11 +6166,14 @@
               { header: 'M7 Test', dataKey: (row) => row.module7?.testCompleted ? `${row.module7.testScore}% (${row.module7.testDate})` : '' }
             ],
             'encampment-status': [
-              { header: 'Cadet Name', dataKey: 'memberName' },
+              { header: 'Member', dataKey: 'memberName' },
               { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
               { header: 'Unit', dataKey: 'unit' },
               { header: 'Rank', dataKey: 'rank' },
               { header: 'Encampment', dataKey: 'encampmentStatus' },
+              { header: 'Count', dataKey: 'count' },
+              { header: 'Encampment Ribbon', dataKey: 'encampmentRibbon' },
               { header: 'Date', dataKey: 'completionDate' }
             ],
             'oflight-status': [
