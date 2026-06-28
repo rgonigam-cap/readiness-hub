@@ -2342,18 +2342,17 @@
           const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
           if (!memberPool.length) return [];
 
-          const cadets = memberPool.filter(m => {
-            const memberType = (m.Type || m.TYPE || '').toUpperCase();
-            return memberType === 'CADET';
-          });
-
+          const activityRows = Array.isArray(dataFiles.cadetActivities) ? dataFiles.cadetActivities : [];
           const rows = [];
 
-          cadets.forEach(cadet => {
-            const activities = dataFiles.cadetActivities ? dataFiles.cadetActivities.filter(a =>
-              String(a.CAPID).trim() === String(cadet.CAPID).trim() &&
+          memberPool.forEach(member => {
+            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+            const isCadet = memberType === 'CADET';
+
+            const activities = activityRows.filter(a =>
+              String(a.CAPID || '').trim() === String(member.CAPID || '').trim() &&
               (a.Type || '').toUpperCase().includes('ENCAMP')
-            ) : [];
+            );
 
             const encampments = activities.map(a => ({
               type: a.Type,
@@ -2361,21 +2360,250 @@
               completed: a.Completed || 'N/A'
             }));
 
+            const count = encampments.length;
+
+            // Cadets are always listed (encampment is a cadet milestone, so the
+            // gap is actionable). Seniors are listed only when they have an
+            // encampment record (staffed/attended) so the ribbon shows for senior
+            // staff without flooding the roster with "not completed" seniors.
+            if (!isCadet && count === 0) return;
+
+            // Encampment Ribbon: first attendance earns the ribbon; each
+            // additional attendance is a repeat award.
+            const ribbon = count === 0 ? 'None' : count === 1 ? 'Ribbon' : `Ribbon +${count - 1}`;
+
             rows.push({
-              capid: cadet.CAPID,
-              memberName: `${cadet.NameLast}, ${cadet.NameFirst}`,
-              unit: cadet.memberUnitName,
-              rank: cadet.Rank,
-              encampmentStatus: encampments.length > 0 ? 'Completed' : 'Not Completed',
-              completionDate: encampments.length > 0 ? (encampments[0].completed || 'N/A') : 'N/A',
-              hasEncampment: encampments.length > 0,
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              unit: member.memberUnitName,
+              memberType: isCadet ? 'Cadet' : 'Senior',
+              rank: member.Rank,
+              encampmentStatus: count > 0 ? 'Completed' : 'Not Completed',
+              completionDate: count > 0 ? (encampments[0].completed || 'N/A') : 'N/A',
+              ribbon,
+              hasEncampment: count > 0,
               encampments,
-              count: encampments.length
+              count
             });
           });
 
           return rows.sort((a, b) => {
             if (a.hasEncampment !== b.hasEncampment) return a.hasEncampment ? 1 : -1;
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Senior Report: Professional Development Level Awards (E&T Levels I-V)
+        // Directly recorded in SeniorAwards.txt (MBRRBN, DAVIS, LOENING, GARBER,
+        // WILSON). Full roster of seniors with the earned date for each level.
+        const generateSeniorPDAwardsReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          if (!memberPool.length) return [];
+
+          const awardRows = Array.isArray(dataFiles.seniorAwards) ? dataFiles.seniorAwards : [];
+          const isRealDate = (d) => !!(d && String(d).trim() && String(d).trim() !== '01/01/1900');
+
+          const rows = [];
+
+          memberPool.forEach(member => {
+            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+            if (memberType === 'CADET') return; // senior PD awards only
+
+            const memberAwards = awardRows.filter(a =>
+              String(a.CAPID || '').trim() === String(member.CAPID || '').trim()
+            );
+
+            const levels = {};
+            let highestIdx = -1;
+            PD_LEVEL_AWARDS.forEach((def, idx) => {
+              const match = memberAwards.find(a =>
+                (a.Award || '').toUpperCase().includes(def.code) && isRealDate(a.Completed)
+              );
+              levels[def.code] = match ? match.Completed : '';
+              if (match) highestIdx = Math.max(highestIdx, idx);
+            });
+
+            const highest = highestIdx >= 0 ? PD_LEVEL_AWARDS[highestIdx] : null;
+
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              unit: member.memberUnitName,
+              rank: member.Rank,
+              levelI: levels['MBRRBN'] || '',
+              levelII: levels['DAVIS'] || '',
+              levelIII: levels['LOENING'] || '',
+              levelIV: levels['GARBER'] || '',
+              levelV: levels['WILSON'] || '',
+              highestAward: highest ? `${highest.short} (Level ${highest.level})` : 'None',
+              highestIdx,
+              awardCount: Object.values(levels).filter(Boolean).length
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (b.highestIdx !== a.highestIdx) return b.highestIdx - a.highestIdx;
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Senior Report: Gen. Chuck Yeager Aerospace Education Award
+        // Directly recorded in SeniorAwards.txt (YEAGER). Full roster of seniors.
+        const generateYeagerAwardReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          if (!memberPool.length) return [];
+
+          const awardRows = Array.isArray(dataFiles.seniorAwards) ? dataFiles.seniorAwards : [];
+          const isRealDate = (d) => !!(d && String(d).trim() && String(d).trim() !== '01/01/1900');
+
+          const rows = [];
+
+          memberPool.forEach(member => {
+            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+            if (memberType === 'CADET') return;
+
+            const match = awardRows.find(a =>
+              String(a.CAPID || '').trim() === String(member.CAPID || '').trim() &&
+              (a.Award || '').toUpperCase().includes(QUA_YEAGER_AWARD_NAME) &&
+              isRealDate(a.Completed)
+            );
+
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              unit: member.memberUnitName,
+              rank: member.Rank,
+              earned: !!match,
+              earnedDate: match ? match.Completed : '',
+              status: match ? 'Earned' : 'Not Earned'
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (a.earned !== b.earned) return a.earned ? -1 : 1; // earned first
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Cadet + Senior Report: Cadet Special Activities Ribbon (CAPR 39-3)
+        // Derived from CadetActivities.txt participation. Denylist approach: every
+        // activity type qualifies except an explicit exclusion set, so new/unseen
+        // national activities count automatically. Lists participants only.
+        const generateCadetSpecialActivitiesReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          if (!memberPool.length) return [];
+
+          const activityRows = Array.isArray(dataFiles.cadetActivities) ? dataFiles.cadetActivities : [];
+
+          // Normalize a Type string: uppercase + strip a trailing " STAFF".
+          const normalizeType = (t) => (t || '').toUpperCase().replace(/\s+STAFF$/, '').replace(/\s+/g, ' ').trim();
+          const qualifies = (t) => {
+            const norm = normalizeType(t);
+            if (!norm) return false;
+            return !CSA_RIBBON_EXCLUDED_ACTIVITIES.includes(norm);
+          };
+          const displayName = (t) => {
+            const norm = normalizeType(t);
+            const base = CADET_ACTIVITY_NAMES[norm] || (t || '').trim() || 'Unknown';
+            return /\sStaff$/i.test(t || '') ? `${base} (Staff)` : base;
+          };
+
+          const rows = [];
+
+          memberPool.forEach(member => {
+            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+            const isCadet = memberType === 'CADET';
+
+            const memberActivities = activityRows.filter(a =>
+              String(a.CAPID || '').trim() === String(member.CAPID || '').trim() &&
+              qualifies(a.Type)
+            );
+
+            if (memberActivities.length === 0) return; // participants only
+
+            const activities = memberActivities
+              .map(a => ({
+                type: a.Type,
+                name: displayName(a.Type),
+                location: a.Location || 'N/A',
+                completed: a.Completed || 'N/A'
+              }))
+              .sort((x, y) => new Date(y.completed) - new Date(x.completed));
+
+            const count = activities.length;
+            // Ribbon for the first activity; each subsequent activity adds a bronze star.
+            const stars = count - 1;
+            const device = count <= 1 ? 'Ribbon' : `Ribbon + ${stars} star${stars > 1 ? 's' : ''}`;
+
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              unit: member.memberUnitName,
+              memberType: isCadet ? 'Cadet' : 'Senior',
+              rank: member.Rank,
+              count,
+              device,
+              activitySummary: activities.map(a => a.name).join(', '),
+              activities
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count; // most activities first
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Senior Report: Leadership Ribbon (specialty-track rating; CAPP 202 / CAPR 39-3)
+        // Earned at the first Technician rating; bronze star at Senior rating,
+        // silver star at Master rating. Device reflects highest rating held.
+        const generateLeadershipRibbonReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          if (!memberPool.length) return [];
+
+          const trackRows = Array.isArray(dataFiles.tracks) ? dataFiles.tracks : [];
+          const RANK = { 'TECHNICIAN': 1, 'SENIOR': 2, 'MASTER': 3 };
+          const titleCase = (s) => s ? s.charAt(0) + s.slice(1).toLowerCase() : s;
+
+          const rows = [];
+
+          memberPool.forEach(member => {
+            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+            if (memberType === 'CADET') return; // specialty tracks are a senior PD program
+
+            const memberTracks = trackRows.filter(t =>
+              String(t.CAPID || '').trim() === String(member.CAPID || '').trim() &&
+              RANK[(t.TrackLevel || '').toUpperCase()]
+            );
+
+            if (memberTracks.length === 0) return; // earned at first Technician rating
+
+            let highest = 0;
+            const ratings = memberTracks.map(t => {
+              const lvl = (t.TrackLevel || '').toUpperCase();
+              if ((RANK[lvl] || 0) > highest) highest = RANK[lvl];
+              return { name: t.Track, level: lvl, date: t.DateMod || '' };
+            }).sort((x, y) => (RANK[y.level] || 0) - (RANK[x.level] || 0));
+
+            const highestName = highest === 3 ? 'MASTER' : highest === 2 ? 'SENIOR' : 'TECHNICIAN';
+
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              unit: member.memberUnitName,
+              rank: member.Rank,
+              highestRating: titleCase(highestName),
+              device: LEADERSHIP_RIBBON_DEVICES[highestName] || 'Ribbon',
+              ratedTracks: memberTracks.length,
+              highest,
+              ratingSummary: ratings.map(r => `${r.name} (${titleCase(r.level)})`).join(', '),
+              ratings
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (b.highest !== a.highest) return b.highest - a.highest; // master first
+            if (b.ratedTracks !== a.ratedTracks) return b.ratedTracks - a.ratedTracks;
             return a.memberName.localeCompare(b.memberName);
           });
         };
@@ -4246,7 +4474,10 @@
           activities: "bg-teal-100 text-teal-800 border border-teal-200",
           recruiting: "bg-green-100 text-green-800 border border-green-200",
           retention: "bg-orange-100 text-orange-800 border border-orange-200",
-          analytics: "bg-cyan-100 text-cyan-800 border border-cyan-200"
+          analytics: "bg-cyan-100 text-cyan-800 border border-cyan-200",
+          awards: "bg-amber-100 text-amber-800 border border-amber-200",
+          "professional development": "bg-indigo-100 text-indigo-800 border border-indigo-200",
+          "aerospace education": "bg-sky-100 text-sky-800 border border-sky-200"
         };
 
         const getMembersForReport = (tags = []) => {
@@ -4364,12 +4595,48 @@
           },
           {
             id: 'encampment-status',
-            title: 'Encampment Completion Status',
-            description: 'All cadets in unit showing whether they have completed an encampment',
+            title: 'Encampment Ribbon',
+            description: 'Encampment completion for all cadets, plus senior staff who have attended, with repeat-attendance count',
             icon: 'Tent',
             accent: 'blue',
-            tags: ['cadet', 'activities', 'readiness'],
+            tags: ['cadet', 'senior', 'activities', 'awards', 'readiness'],
             generate: (members) => generateEncampmentReport(members)
+          },
+          {
+            id: 'cadet-special-activities',
+            title: 'Cadet Special Activities Ribbon',
+            description: 'Cadets and senior members who have participated in national cadet special activities (NCSAs) — each activity beyond the first adds a bronze star',
+            icon: 'Award',
+            accent: 'purple',
+            tags: ['cadet', 'senior', 'activities', 'awards', 'readiness'],
+            generate: (members) => generateCadetSpecialActivitiesReport(members)
+          },
+          {
+            id: 'senior-pd-awards',
+            title: 'Senior PD Level Awards',
+            description: 'Professional Development level awards for senior members — Membership Ribbon (Level I), Davis (II), Loening (III), Garber (IV), and Wilson (V)',
+            icon: 'Award',
+            accent: 'emerald',
+            tags: ['senior', 'professional development', 'awards', 'readiness'],
+            generate: (members) => generateSeniorPDAwardsReport(members)
+          },
+          {
+            id: 'yeager-award',
+            title: 'Yeager Aerospace Education Award',
+            description: 'Senior members who have earned the Gen. Chuck Yeager Aerospace Education Award',
+            icon: 'Award',
+            accent: 'blue',
+            tags: ['senior', 'aerospace education', 'awards', 'readiness'],
+            generate: (members) => generateYeagerAwardReport(members)
+          },
+          {
+            id: 'leadership-ribbon',
+            title: 'Leadership Ribbon',
+            description: 'Senior members who hold a specialty-track rating — Technician earns the ribbon; Senior adds a bronze star, Master a silver star',
+            icon: 'Award',
+            accent: 'amber',
+            tags: ['senior', 'specialty track', 'awards', 'readiness'],
+            generate: (members) => generateLeadershipRibbonReport(members)
           },
           {
             id: 'oflight-status',
@@ -5836,7 +6103,10 @@
               'near-promotion',
               'cac-representatives',
               'promotion',
-              'tlc-compliance'
+              'tlc-compliance',
+              'senior-pd-awards',
+              'cadet-special-activities',
+              'leadership-ribbon'
             ];
 
           if (report.data && report.data.length > 0) {
@@ -5992,12 +6262,55 @@
               { header: 'M7 Test', dataKey: (row) => row.module7?.testCompleted ? `${row.module7.testScore}% (${row.module7.testDate})` : '' }
             ],
             'encampment-status': [
-              { header: 'Cadet Name', dataKey: 'memberName' },
+              { header: 'Member', dataKey: 'memberName' },
               { header: 'CAPID', dataKey: 'capid' },
               { header: 'Unit', dataKey: 'unit' },
+              { header: 'Type', dataKey: 'memberType' },
               { header: 'Rank', dataKey: 'rank' },
               { header: 'Encampment', dataKey: 'encampmentStatus' },
+              { header: 'Count', dataKey: 'count' },
+              { header: 'Ribbon', dataKey: 'ribbon' },
               { header: 'Date', dataKey: 'completionDate' }
+            ],
+            'cadet-special-activities': [
+              { header: 'Member', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Grade', dataKey: 'rank' },
+              { header: 'Activities', dataKey: 'count' },
+              { header: 'Device', dataKey: 'device' },
+              { header: 'Detail', dataKey: 'activitySummary' }
+            ],
+            'senior-pd-awards': [
+              { header: 'Member', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Grade', dataKey: 'rank' },
+              { header: 'I (Membership)', dataKey: (row) => row.levelI || '' },
+              { header: 'II (Davis)', dataKey: (row) => row.levelII || '' },
+              { header: 'III (Loening)', dataKey: (row) => row.levelIII || '' },
+              { header: 'IV (Garber)', dataKey: (row) => row.levelIV || '' },
+              { header: 'V (Wilson)', dataKey: (row) => row.levelV || '' },
+              { header: 'Highest', dataKey: 'highestAward' }
+            ],
+            'yeager-award': [
+              { header: 'Member', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Grade', dataKey: 'rank' },
+              { header: 'Status', dataKey: 'status' },
+              { header: 'Date Earned', dataKey: 'earnedDate' }
+            ],
+            'leadership-ribbon': [
+              { header: 'Member', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Grade', dataKey: 'rank' },
+              { header: 'Highest Rating', dataKey: 'highestRating' },
+              { header: 'Device', dataKey: 'device' },
+              { header: 'Rated Tracks', dataKey: 'ratedTracks' },
+              { header: 'Tracks', dataKey: 'ratingSummary' }
             ],
             'oflight-status': [
               { header: 'Cadet Name', dataKey: 'memberName' },

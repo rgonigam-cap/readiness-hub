@@ -1064,26 +1064,28 @@ function ReportsSection(props) {
           <div>
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
               <p className="text-sm text-blue-900">
-                <strong>Encampment Completion Status:</strong> Shows all cadets in the unit and whether they have completed an encampment.
+                <strong>Encampment Ribbon:</strong> Encampment completion for all cadets, plus senior members who have attended or staffed an encampment. The Count column is the number of encampments — each beyond the first is a repeat award.
               </p>
             </div>
 
             {selectedReport.data.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <Icon name="Users" className="w-16 h-16 mx-auto mb-3 opacity-20" />
-                <p className="font-medium">No cadet data available!</p>
+                <p className="font-medium">No member data available!</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
                   <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
                     <tr>
-                      <th className="px-3 py-2 text-left">Cadet Name</th>
+                      <th className="px-3 py-2 text-left">Member</th>
                       <th className="px-3 py-2 text-left">CAPID</th>
                       <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Type</th>
                       <th className="px-3 py-2 text-left">Rank</th>
                       <th className="px-3 py-2 text-center">Status</th>
                       <th className="px-3 py-2 text-center">Count</th>
+                      <th className="px-3 py-2 text-center">Ribbon</th>
                       <th className="px-3 py-2 text-left">Details</th>
                     </tr>
                   </thead>
@@ -1095,6 +1097,7 @@ function ReportsSection(props) {
                         </td>
                         <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
                         <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.memberType}</td>
                         <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
                         <td className="px-3 py-2 text-center">
                           <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
@@ -1106,6 +1109,9 @@ function ReportsSection(props) {
                         </td>
                         <td className="px-3 py-2 text-center text-xs font-semibold text-slate-700">
                           {row.count}
+                        </td>
+                        <td className="px-3 py-2 text-center text-xs font-semibold text-blue-700">
+                          {row.ribbon}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-600">
                           {row.encampments.length > 0 ? (
@@ -1125,6 +1131,224 @@ function ReportsSection(props) {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'cadet-special-activities' && (
+          <div>
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-4">
+              <p className="text-sm text-purple-900">
+                <strong>Cadet Special Activities Ribbon:</strong> Cadets and senior members who have participated in national cadet special activities (NCSAs). The first activity earns the ribbon; each additional activity adds a bronze star. Members with no qualifying activity are not listed.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No qualifying special-activity participation found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Member</th>
+                      <th className="px-3 py-2 text-left">CAPID</th>
+                      <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Type</th>
+                      <th className="px-3 py-2 text-left">Grade</th>
+                      <th className="px-3 py-2 text-center">Activities</th>
+                      <th className="px-3 py-2 text-left">Device</th>
+                      <th className="px-3 py-2 text-left">Detail</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedReport.data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.memberType}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                        <td className="px-3 py-2 text-center text-xs font-semibold text-slate-700">{row.count}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-purple-700">{row.device}</td>
+                        <td className="px-3 py-2 text-xs text-slate-600">
+                          <div className="space-y-1">
+                            {row.activities.slice(0, 3).map((act, i) => (
+                              <div key={i} className="truncate max-w-md">{act.name} - {act.completed}</div>
+                            ))}
+                            {row.activities.length > 3 && (
+                              <div className="text-purple-600 font-medium">+{row.activities.length - 3} more</div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'senior-pd-awards' && (
+          <div>
+            <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-200 mb-4">
+              <p className="text-sm text-emerald-900">
+                <strong>Senior PD Level Awards:</strong> Professional Development level awards recorded for each senior member — Membership Ribbon (Level I), Davis (II), Loening (III), Garber (IV), and Wilson (V). A date means the award is recorded as completed.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No senior member data available!</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Member</th>
+                      <th className="px-3 py-2 text-left">CAPID</th>
+                      <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Grade</th>
+                      <th className="px-3 py-2 text-center">I (Membership)</th>
+                      <th className="px-3 py-2 text-center">II (Davis)</th>
+                      <th className="px-3 py-2 text-center">III (Loening)</th>
+                      <th className="px-3 py-2 text-center">IV (Garber)</th>
+                      <th className="px-3 py-2 text-center">V (Wilson)</th>
+                      <th className="px-3 py-2 text-left">Highest</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedReport.data.map((row, idx) => {
+                      const cell = (val) => val
+                        ? <span className="text-xs font-semibold text-emerald-700">{val}</span>
+                        : <span className="text-slate-300">—</span>;
+                      return (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                        <td className="px-3 py-2 text-center">{cell(row.levelI)}</td>
+                        <td className="px-3 py-2 text-center">{cell(row.levelII)}</td>
+                        <td className="px-3 py-2 text-center">{cell(row.levelIII)}</td>
+                        <td className="px-3 py-2 text-center">{cell(row.levelIV)}</td>
+                        <td className="px-3 py-2 text-center">{cell(row.levelV)}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.highestAward}</td>
+                      </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'yeager-award' && (
+          <div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+              <p className="text-sm text-blue-900">
+                <strong>Yeager Aerospace Education Award:</strong> Senior members and whether they have earned the Gen. Chuck Yeager Aerospace Education Award.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No senior member data available!</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Member</th>
+                      <th className="px-3 py-2 text-left">CAPID</th>
+                      <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Grade</th>
+                      <th className="px-3 py-2 text-center">Status</th>
+                      <th className="px-3 py-2 text-left">Date Earned</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedReport.data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                            row.earned ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
+                          }`}>
+                            <Icon name={row.earned ? 'CheckCircle' : 'X'} className="w-3 h-3 mr-1" />
+                            {row.earned ? 'Earned' : 'Not Earned'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.earnedDate || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'leadership-ribbon' && (
+          <div>
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-4">
+              <p className="text-sm text-amber-900">
+                <strong>Leadership Ribbon:</strong> Senior members who hold a specialty-track rating. A Technician rating earns the ribbon; a Senior rating adds a bronze star and a Master rating a silver star. The device shown reflects the member's highest rating.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No specialty-track ratings found.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Member</th>
+                      <th className="px-3 py-2 text-left">CAPID</th>
+                      <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Grade</th>
+                      <th className="px-3 py-2 text-center">Highest Rating</th>
+                      <th className="px-3 py-2 text-left">Device</th>
+                      <th className="px-3 py-2 text-center">Rated Tracks</th>
+                      <th className="px-3 py-2 text-left">Specialty Tracks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedReport.data.map((row, idx) => {
+                      const badge = row.highest === 3 ? 'bg-purple-100 text-purple-700' : row.highest === 2 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700';
+                      return (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${badge}`}>{row.highestRating}</span>
+                        </td>
+                        <td className="px-3 py-2 text-xs font-semibold text-amber-700">{row.device}</td>
+                        <td className="px-3 py-2 text-center text-xs font-semibold text-slate-700">{row.ratedTracks}</td>
+                        <td className="px-3 py-2 text-xs text-slate-600"><div className="truncate max-w-md">{row.ratingSummary}</div></td>
+                      </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

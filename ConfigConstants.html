@@ -1124,4 +1124,62 @@ const QUA_CADET_PROTECTION_COURSES = [
 // Yeager Award identifier for senior awards
 const QUA_YEAGER_AWARD_NAME = 'YEAGER';
 
+// ============================================================
+// Ribbons & Awards reporting (CAPR 39-3)
+// ============================================================
+
+// Senior Professional Development level awards (E&T Levels I-V).
+// `code` matches the Award value in SeniorAwards.txt; `level` is the E&T level.
+// The Membership Ribbon is the Level I award (completion of Level I of the
+// E&T program) and is intentionally grouped with the higher level awards.
+const PD_LEVEL_AWARDS = [
+  { code: 'MBRRBN',  level: 'I',   name: 'Membership Ribbon',       short: 'Membership' },
+  { code: 'DAVIS',   level: 'II',  name: 'Benjamin O. Davis Award', short: 'Davis' },
+  { code: 'LOENING', level: 'III', name: 'Grover Loening Award',    short: 'Loening' },
+  { code: 'GARBER',  level: 'IV',  name: 'Paul E. Garber Award',    short: 'Garber' },
+  { code: 'WILSON',  level: 'V',   name: 'Gill Robb Wilson Award',  short: 'Wilson' }
+];
+
+// Cadet Special Activities (Cadet Specialty Activity) Ribbon, CAPR 39-3.
+// The list of qualifying national activities is NON-EXHAUSTIVE and grows over
+// time ("as new activities are established... attendance qualifies"), so we use
+// a DENYLIST: every CadetActivities.Type counts toward the ribbon EXCEPT these.
+// Any new/unseen activity code therefore qualifies automatically.
+// Matching is done after uppercasing and stripping a trailing " STAFF".
+//   ENCAMP   - has its own Encampment Ribbon report
+//   RCLS     - region activity, not a national special activity
+//   DDRX     - Drug Demand Reduction, not a special activity
+//   RSTINPER - Recruiter Sustainment Training, not a special activity
+const CSA_RIBBON_EXCLUDED_ACTIVITIES = ['ENCAMP', 'RCLS', 'DDRX', 'RSTINPER'];
+
+// Friendly display names for known CadetActivities.Type codes (keyed by the
+// normalized form: uppercased, trailing " STAFF" stripped). Unknown/new codes
+// fall back to the raw code so the report still works and still counts.
+const CADET_ACTIVITY_NAMES = {
+  'ENCAMP': 'Encampment',
+  'NCSA': 'National Cadet Special Activity',
+  'COS': 'Cadet Officer School',
+  'RCLS': 'Region Cadet Leadership School',
+  'NFAG': 'National Flight Academy - Glider',
+  'NFAJ': 'National Flight Academy - Powered',
+  'CFA-G': 'Cadet Flight Academy - Glider',
+  'CFA-P': 'Cadet Flight Academy - Powered',
+  'CFAP': 'Cadet Flight Academy - Powered',
+  'SPACEOPS': 'Cadet Space Operations',
+  'NESA': 'National Emergency Services Academy',
+  'SUPTCFC': 'SUPT Familiarization Course',
+  'AFSPCFC': 'AF Space Command Familiarization Course',
+  'DDRX': 'Drug Demand Reduction',
+  'RSTINPER': 'Recruiter Sustainment Training (In Person)'
+};
+
+// Leadership Ribbon devices by highest specialty-track rating (CAPP 202 / CAPR
+// 39-3): earned at first Technician rating; bronze star at Senior rating,
+// silver star at Master rating.
+const LEADERSHIP_RIBBON_DEVICES = {
+  'TECHNICIAN': 'Ribbon',
+  'SENIOR': 'Ribbon + Bronze Star',
+  'MASTER': 'Ribbon + Silver Star'
+};
+
 </script>

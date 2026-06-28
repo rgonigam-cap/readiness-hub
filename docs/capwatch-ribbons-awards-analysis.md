@@ -11,6 +11,38 @@ ships with a non‑standard stream compression that defeats both text extraction
 
 ---
 
+## 0. Status — IMPLEMENTED (2026‑06)
+
+Six ribbon/award reports were built/improved per the agreed plan. **Design decisions** (which
+supersede the "entitlement vs. awarded" recommendation that appears later in this analysis):
+
+- **No "entitlement vs. awarded" framing.** eServices has no ribbon tracking — everything is presumed.
+  Reports track **participation/attendance** (for derived ribbons) or **the recorded award itself**
+  (for directly‑recorded awards). One report per ribbon/award.
+- **Cadet achievement awards/ribbons are out of scope** (Wright Brothers → Spaatz) — handled elsewhere.
+- **Cadet Special Activities Ribbon uses a denylist, not an allowlist.** Per CAPR 39‑3 the qualifying
+  national‑activity list is non‑exhaustive and grows over time, so every `CadetActivities.Type` counts
+  **except** an explicit exclusion set (`ENCAMP`, `RCLS`, `DDRX`, `RSTInPer`). Any new/unseen activity
+  code qualifies automatically; malformed/blank types are guarded so the report never throws.
+
+| # | Report (id) | New/Improve | Audience | Data source | Notes |
+|---|---|---|---|---|---|
+| 1 | Senior PD Level Awards (`senior-pd-awards`) | New | Senior | `SeniorAwards.txt` MBRRBN/DAVIS/LOENING/GARBER/WILSON | Full roster; one column per E&T level (I–V) + highest. Membership Ribbon = Level I. |
+| 2 | Yeager AE Award (`yeager-award`) | New | Senior | `SeniorAwards.txt` YEAGER | Full roster, earned date. |
+| 3 | Cadet Special Activities Ribbon (`cadet-special-activities`) | New | Cadet + Senior | `CadetActivities.txt` (denylist) | Participants only; ribbon + bronze star per extra activity. |
+| 4 | Leadership Ribbon (`leadership-ribbon`) | New | Senior | `SpecTrack.txt` TrackLevel | Technician = ribbon, Senior = +bronze star, Master = +silver star (highest rating). |
+| 5 | Encampment Ribbon (`encampment-status`) | Improve | Cadet + Senior | `CadetActivities.Type` ⊇ `ENCAMP` | Added senior staff + repeat‑attendance (clasp) count. |
+| 6 | CAC Ribbon basis (`cac-representatives`) | (existing) | Cadet + Senior | committee/duty data | CAC service is the ribbon basis; report already lists reps/advisors. |
+
+**Skipped:** Unit Citation / Squadron of Merit (no usable data — `OrgSquadron_Of_Merit.txt` is a legacy
+stats snapshot, verified by base64 decode). Standalone Membership Ribbon report (folded into #1 as Level I).
+
+Code touch‑points: constants in `ConfigConstants.html` (`PD_LEVEL_AWARDS`,
+`CSA_RIBBON_EXCLUDED_ACTIVITIES`, `CADET_ACTIVITY_NAMES`, `LEADERSHIP_RIBBON_DEVICES`); generators +
+`reportCatalog` + PDF `columnConfigs`/orientation in `Index.html`; render blocks in `AppReports.html`.
+
+---
+
 ## 1. How CAPWATCH actually stores awards (the key finding)
 
 CAPWATCH does **not** carry every ribbon a member is entitled to. The award data splits three ways:
