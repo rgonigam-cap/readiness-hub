@@ -2164,6 +2164,80 @@
             .sort((a, b) => b.yearsSort - a.yearsSort);
         };
 
+        // Eligibility for retroactive awards keyed purely to having been an active member
+        // during a fixed historical date range. Service start is the earliest CAPWATCH
+        // join date (original OrgJoined when present — it persists across membership lapses
+        // and unit transfers — otherwise Joined). A member is eligible if that start is on
+        // or before the window's END date (i.e., they were a member for at least one day
+        // during the window). Per CAPWATCH limitations the lapse gap is not subtracted, so
+        // members who rejoined after a lapse (prior service) are flagged for verification.
+        const getMembershipWindowEligibility = (joinedRaw, orgJoinedRaw, windowEnd) => {
+          const joinDate = parseDateSafe(joinedRaw);
+          const orgJoinDate = parseDateSafe(orgJoinedRaw);
+          let serviceStart;
+          if (joinDate && orgJoinDate) serviceStart = orgJoinDate < joinDate ? orgJoinDate : joinDate;
+          else serviceStart = orgJoinDate || joinDate;
+          if (!serviceStart || !windowEnd) return { valid: false };
+          return {
+            valid: true,
+            serviceStart,
+            eligible: serviceStart <= windowEnd,
+            priorService: !!(joinDate && orgJoinDate && orgJoinDate < joinDate)
+          };
+        };
+
+        // Shared builder for a membership-window award roster. Lists eligible members
+        // only, earliest service first. `typeFilter` receives the uppercased member type.
+        const generateMembershipWindowReport = (memberPool, windowEnd, typeFilter) => {
+          if (!Array.isArray(memberPool) || !memberPool.length) return [];
+
+          const members = memberPool.filter(m => typeFilter((m.Type || m.TYPE || '').toUpperCase()));
+
+          const rows = [];
+          members.forEach(member => {
+            const status = getMembershipWindowEligibility(member.Joined, member.OrgJoined, windowEnd);
+            if (!status.valid || !status.eligible) return; // eligible members only
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              memberType: (member.Type || member.TYPE || 'UNKNOWN').toUpperCase(),
+              rank: member.Rank || 'N/A',
+              unit: member.memberUnitName || 'Unknown',
+              serviceSince: formatShortDate(status.serviceStart),
+              serviceSort: status.serviceStart.getTime(),
+              priorService: status.priorService
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (a.serviceSort !== b.serviceSort) return a.serviceSort - b.serviceSort; // earliest join first
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Crisis Service Ribbon (ICL 21-03): all active members who served at least one
+        // day from 1 Mar 2020 through 21 Oct 2022.
+        const generateCrisisServiceRibbonReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          const windowEnd = parseDateSafe('10/21/2022');
+          return generateMembershipWindowReport(
+            memberPool, windowEnd,
+            (t) => t === 'CADET' || t === 'SENIOR' || t === 'LIFE'
+          );
+        };
+
+        // Air Force Organizational Excellence Award (ICL 18-02): senior members (incl.
+        // fifty-year and life members) and cadet members with active membership for at
+        // least one day from 1 Oct 2012 through 31 Aug 2016.
+        const generateAFOEAReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          const windowEnd = parseDateSafe('08/31/2016');
+          return generateMembershipWindowReport(
+            memberPool, windowEnd,
+            (t) => t === 'CADET' || t === 'SENIOR' || t === 'LIFE'
+          );
+        };
+
           const generateCadetProtectionReport = (membersOverride = null) => {
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             if (!memberPool.length || !getCadetProtectionStatus) return [];
@@ -2833,12 +2907,17 @@
 
             const hasAnyFlight = totalPoweredFlights > 0 || backSeatRides > 0;
 
+            // Cadets are eligible for orientation flights only until age 18. Cadets
+            // 18 or older are no longer eligible for additional O-flights.
+            const ineligible = age !== null && age >= 18;
+
             rows.push({
               capid: cadet.CAPID,
               memberName: `${cadet.NameLast}, ${cadet.NameFirst}`,
               unit: cadet.memberUnitName,
               joinDate: cadet.Joined || 'N/A',
               age: age !== null ? age : 'N/A',
+              ineligible,
               hasAnyFlight,
               totalPoweredFlights,
               backSeatRides,
@@ -2847,8 +2926,10 @@
             });
           });
 
-          // Sort: cadets with NO flights first (highlighted), then by name
+          // Sort: ineligible (age 18+) cadets to the bottom; within each group,
+          // cadets with NO flights first (highlighted), then by name.
           return rows.sort((a, b) => {
+            if (a.ineligible !== b.ineligible) return a.ineligible ? 1 : -1;
             if (a.hasAnyFlight !== b.hasAnyFlight) return a.hasAnyFlight ? 1 : -1;
             return a.memberName.localeCompare(b.memberName);
           });
@@ -4892,6 +4973,24 @@
             accent: 'amber',
             tags: ['cadet', 'senior', 'membership'],
             generate: (members) => generateRedServiceRibbonReport(members)
+          },
+          {
+            id: 'crisis-service-ribbon',
+            title: 'Crisis Service Ribbon',
+            description: 'Members eligible for the Crisis Service Ribbon (ICL 21-03) — active membership for at least one day from 1 Mar 2020 through 21 Oct 2022',
+            icon: 'Award',
+            accent: 'amber',
+            tags: ['cadet', 'senior', 'membership', 'awards'],
+            generate: (members) => generateCrisisServiceRibbonReport(members)
+          },
+          {
+            id: 'afoea',
+            title: 'AF Organizational Excellence Award',
+            description: 'Members eligible for the Air Force Organizational Excellence Award (ICL 18-02) — active membership for at least one day from 1 Oct 2012 through 31 Aug 2016',
+            icon: 'Award',
+            accent: 'blue',
+            tags: ['cadet', 'senior', 'membership', 'awards'],
+            generate: (members) => generateAFOEAReport(members)
           }
         ];
 
@@ -6585,6 +6684,24 @@
               { header: 'Entitlement', dataKey: 'entitlement' },
               { header: 'Next Milestone', dataKey: 'nextMilestone' },
               { header: 'Next Date', dataKey: 'nextDate' }
+            ],
+            'crisis-service-ribbon': [
+              { header: 'Member Name', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Service Since', dataKey: 'serviceSince' },
+              { header: 'Prior Service', dataKey: (row) => row.priorService ? 'Yes (verify)' : '' }
+            ],
+            'afoea': [
+              { header: 'Member Name', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Service Since', dataKey: 'serviceSince' },
+              { header: 'Prior Service', dataKey: (row) => row.priorService ? 'Yes (verify)' : '' }
             ]
             };
 

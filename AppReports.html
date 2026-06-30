@@ -1056,6 +1056,134 @@ function ReportsSection(props) {
           );
         })()}
 
+        {selectedReport.type === 'crisis-service-ribbon' && (
+          <div>
+            <div className="bg-rose-50 p-4 rounded-lg border border-rose-200 mb-4">
+              <p className="text-sm text-rose-900">
+                <strong>Crisis Service Ribbon (ICL 21-03):</strong> Authorized to all members who held active membership for at least one day from <strong>1 Mar 2020 through 21 Oct 2022</strong>. Only eligible members are listed.
+              </p>
+              <p className="text-xs text-rose-800 mt-1">
+                Eligibility uses each member's earliest CAPWATCH join date (original OrgJoined when present, which persists across lapses/transfers). A "prior svc" tag marks members who rejoined after a lapse — verify they were active during the window, as CAPWATCH carries no lapse-gap data.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No eligible members found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-800">Eligible: {selectedReport.data.length}</span>
+                  {selectedReport.data.some(r => r.priorService) && (
+                    <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">Prior service (verify): {selectedReport.data.filter(r => r.priorService).length}</span>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Member</th>
+                        <th className="px-3 py-2 text-left">CAPID</th>
+                        <th className="px-3 py-2 text-left">Type</th>
+                        <th className="px-3 py-2 text-left">Rank</th>
+                        <th className="px-3 py-2 text-left">Unit</th>
+                        <th className="px-3 py-2 text-left">Service Since</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedReport.data.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                              row.memberType === 'CADET' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            }`}>{row.memberType}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">
+                            {row.serviceSince}
+                            {row.priorService && (
+                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-semibold" title="Original CAP join (OrgJoined) predates current membership; verify active service during the award window">prior svc</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'afoea' && (
+          <div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+              <p className="text-sm text-blue-900">
+                <strong>Air Force Organizational Excellence Award (ICL 18-02):</strong> Authorized to senior members (including fifty-year and life members) and cadet members with active membership for at least one day from <strong>1 Oct 2012 through 31 Aug 2016</strong>. Only eligible members are listed.
+              </p>
+              <p className="text-xs text-blue-800 mt-1">
+                Eligibility uses each member's earliest CAPWATCH join date (original OrgJoined when present, which persists across lapses/transfers). A "prior svc" tag marks members who rejoined after a lapse — verify they were active during the window, as CAPWATCH carries no lapse-gap data.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No eligible members found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">Eligible: {selectedReport.data.length}</span>
+                  {selectedReport.data.some(r => r.priorService) && (
+                    <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">Prior service (verify): {selectedReport.data.filter(r => r.priorService).length}</span>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Member</th>
+                        <th className="px-3 py-2 text-left">CAPID</th>
+                        <th className="px-3 py-2 text-left">Type</th>
+                        <th className="px-3 py-2 text-left">Rank</th>
+                        <th className="px-3 py-2 text-left">Unit</th>
+                        <th className="px-3 py-2 text-left">Service Since</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedReport.data.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                              row.memberType === 'CADET' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            }`}>{row.memberType}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">
+                            {row.serviceSince}
+                            {row.priorService && (
+                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-semibold" title="Original CAP join (OrgJoined) predates current membership; verify active service during the award window">prior svc</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Cadet Report: Aerospace Education */}
         {selectedReport.type === 'aerospace-education' && (
           <div>
@@ -1498,7 +1626,7 @@ function ReportsSection(props) {
           <div>
             <div className="bg-sky-50 p-4 rounded-lg border border-sky-200 mb-4">
               <p className="text-sm text-sky-900">
-                <strong>Orientation Flights Status:</strong> Shows powered O-Flight syllabus completion (syllabi 6-10) for all cadets. Cadets with no O-Flights are highlighted at the top of the list.
+                <strong>Orientation Flights Status:</strong> Shows powered O-Flight syllabus completion (syllabi 6-10) for all cadets. Cadets with no O-Flights are highlighted amber at the top; cadets age 18 or older are no longer eligible for orientation flights and are greyed out at the bottom.
               </p>
               <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
                 <div className="flex items-center gap-1">
@@ -1597,12 +1725,14 @@ function ReportsSection(props) {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedReport.data.map((row, idx) => (
-                      <tr key={idx} className={`hover:bg-slate-50 ${!row.hasAnyFlight ? 'bg-amber-50' : ''}`}>
+                      <tr key={idx} className={`hover:bg-slate-50 ${row.ineligible ? 'bg-slate-100 text-slate-500' : !row.hasAnyFlight ? 'bg-amber-50' : ''}`}>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            {!row.hasAnyFlight && (
+                            {row.ineligible ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-300 text-slate-600 text-[10px] font-semibold" title="Age 18+ — no longer eligible for orientation flights">18+</span>
+                            ) : !row.hasAnyFlight ? (
                               <Icon name="AlertCircle" className="w-4 h-4 text-amber-500" title="No O-Flights yet" />
-                            )}
+                            ) : null}
                             <span className="font-bold text-slate-900">{row.memberName}</span>
                           </div>
                         </td>
@@ -1641,6 +1771,10 @@ function ReportsSection(props) {
                   <div className="flex items-center gap-1">
                     <div className="w-4 h-4 bg-amber-50 border border-amber-200 rounded"></div>
                     <span>No O-Flights yet</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 bg-slate-100 border border-slate-300 rounded"></div>
+                    <span>Age 18+ (no longer eligible)</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Icon name="CheckCircle" className="w-4 h-4 text-emerald-500" />

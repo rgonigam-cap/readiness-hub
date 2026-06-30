@@ -17726,6 +17726,134 @@ function ReportsSection(props) {
           );
         })()}
 
+        {selectedReport.type === 'crisis-service-ribbon' && (
+          <div>
+            <div className="bg-rose-50 p-4 rounded-lg border border-rose-200 mb-4">
+              <p className="text-sm text-rose-900">
+                <strong>Crisis Service Ribbon (ICL 21-03):</strong> Authorized to all members who held active membership for at least one day from <strong>1 Mar 2020 through 21 Oct 2022</strong>. Only eligible members are listed.
+              </p>
+              <p className="text-xs text-rose-800 mt-1">
+                Eligibility uses each member's earliest CAPWATCH join date (original OrgJoined when present, which persists across lapses/transfers). A "prior svc" tag marks members who rejoined after a lapse — verify they were active during the window, as CAPWATCH carries no lapse-gap data.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No eligible members found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="px-2 py-1 rounded-full bg-rose-100 text-rose-800">Eligible: {selectedReport.data.length}</span>
+                  {selectedReport.data.some(r => r.priorService) && (
+                    <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">Prior service (verify): {selectedReport.data.filter(r => r.priorService).length}</span>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Member</th>
+                        <th className="px-3 py-2 text-left">CAPID</th>
+                        <th className="px-3 py-2 text-left">Type</th>
+                        <th className="px-3 py-2 text-left">Rank</th>
+                        <th className="px-3 py-2 text-left">Unit</th>
+                        <th className="px-3 py-2 text-left">Service Since</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedReport.data.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                              row.memberType === 'CADET' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            }`}>{row.memberType}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">
+                            {row.serviceSince}
+                            {row.priorService && (
+                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-semibold" title="Original CAP join (OrgJoined) predates current membership; verify active service during the award window">prior svc</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedReport.type === 'afoea' && (
+          <div>
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+              <p className="text-sm text-blue-900">
+                <strong>Air Force Organizational Excellence Award (ICL 18-02):</strong> Authorized to senior members (including fifty-year and life members) and cadet members with active membership for at least one day from <strong>1 Oct 2012 through 31 Aug 2016</strong>. Only eligible members are listed.
+              </p>
+              <p className="text-xs text-blue-800 mt-1">
+                Eligibility uses each member's earliest CAPWATCH join date (original OrgJoined when present, which persists across lapses/transfers). A "prior svc" tag marks members who rejoined after a lapse — verify they were active during the window, as CAPWATCH carries no lapse-gap data.
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Award" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No eligible members found.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                  <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">Eligible: {selectedReport.data.length}</span>
+                  {selectedReport.data.some(r => r.priorService) && (
+                    <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-800">Prior service (verify): {selectedReport.data.filter(r => r.priorService).length}</span>
+                  )}
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                    <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Member</th>
+                        <th className="px-3 py-2 text-left">CAPID</th>
+                        <th className="px-3 py-2 text-left">Type</th>
+                        <th className="px-3 py-2 text-left">Rank</th>
+                        <th className="px-3 py-2 text-left">Unit</th>
+                        <th className="px-3 py-2 text-left">Service Since</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedReport.data.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="px-3 py-2"><div className="font-bold text-slate-900">{row.memberName}</div></td>
+                          <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${
+                              row.memberType === 'CADET' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            }`}>{row.memberType}</span>
+                          </td>
+                          <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">{row.unit}</td>
+                          <td className="px-3 py-2 text-xs text-slate-700">
+                            {row.serviceSince}
+                            {row.priorService && (
+                              <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-semibold" title="Original CAP join (OrgJoined) predates current membership; verify active service during the award window">prior svc</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Cadet Report: Aerospace Education */}
         {selectedReport.type === 'aerospace-education' && (
           <div>
@@ -18168,7 +18296,7 @@ function ReportsSection(props) {
           <div>
             <div className="bg-sky-50 p-4 rounded-lg border border-sky-200 mb-4">
               <p className="text-sm text-sky-900">
-                <strong>Orientation Flights Status:</strong> Shows powered O-Flight syllabus completion (syllabi 6-10) for all cadets. Cadets with no O-Flights are highlighted at the top of the list.
+                <strong>Orientation Flights Status:</strong> Shows powered O-Flight syllabus completion (syllabi 6-10) for all cadets. Cadets with no O-Flights are highlighted amber at the top; cadets age 18 or older are no longer eligible for orientation flights and are greyed out at the bottom.
               </p>
               <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
                 <div className="flex items-center gap-1">
@@ -18267,12 +18395,14 @@ function ReportsSection(props) {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedReport.data.map((row, idx) => (
-                      <tr key={idx} className={`hover:bg-slate-50 ${!row.hasAnyFlight ? 'bg-amber-50' : ''}`}>
+                      <tr key={idx} className={`hover:bg-slate-50 ${row.ineligible ? 'bg-slate-100 text-slate-500' : !row.hasAnyFlight ? 'bg-amber-50' : ''}`}>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            {!row.hasAnyFlight && (
+                            {row.ineligible ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-300 text-slate-600 text-[10px] font-semibold" title="Age 18+ — no longer eligible for orientation flights">18+</span>
+                            ) : !row.hasAnyFlight ? (
                               <Icon name="AlertCircle" className="w-4 h-4 text-amber-500" title="No O-Flights yet" />
-                            )}
+                            ) : null}
                             <span className="font-bold text-slate-900">{row.memberName}</span>
                           </div>
                         </td>
@@ -18311,6 +18441,10 @@ function ReportsSection(props) {
                   <div className="flex items-center gap-1">
                     <div className="w-4 h-4 bg-amber-50 border border-amber-200 rounded"></div>
                     <span>No O-Flights yet</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-4 h-4 bg-slate-100 border border-slate-300 rounded"></div>
+                    <span>Age 18+ (no longer eligible)</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Icon name="CheckCircle" className="w-4 h-4 text-emerald-500" />
@@ -22968,6 +23102,80 @@ window.importCapwatchZip = async function(file, onProgress) {
             .sort((a, b) => b.yearsSort - a.yearsSort);
         };
 
+        // Eligibility for retroactive awards keyed purely to having been an active member
+        // during a fixed historical date range. Service start is the earliest CAPWATCH
+        // join date (original OrgJoined when present — it persists across membership lapses
+        // and unit transfers — otherwise Joined). A member is eligible if that start is on
+        // or before the window's END date (i.e., they were a member for at least one day
+        // during the window). Per CAPWATCH limitations the lapse gap is not subtracted, so
+        // members who rejoined after a lapse (prior service) are flagged for verification.
+        const getMembershipWindowEligibility = (joinedRaw, orgJoinedRaw, windowEnd) => {
+          const joinDate = parseDateSafe(joinedRaw);
+          const orgJoinDate = parseDateSafe(orgJoinedRaw);
+          let serviceStart;
+          if (joinDate && orgJoinDate) serviceStart = orgJoinDate < joinDate ? orgJoinDate : joinDate;
+          else serviceStart = orgJoinDate || joinDate;
+          if (!serviceStart || !windowEnd) return { valid: false };
+          return {
+            valid: true,
+            serviceStart,
+            eligible: serviceStart <= windowEnd,
+            priorService: !!(joinDate && orgJoinDate && orgJoinDate < joinDate)
+          };
+        };
+
+        // Shared builder for a membership-window award roster. Lists eligible members
+        // only, earliest service first. `typeFilter` receives the uppercased member type.
+        const generateMembershipWindowReport = (memberPool, windowEnd, typeFilter) => {
+          if (!Array.isArray(memberPool) || !memberPool.length) return [];
+
+          const members = memberPool.filter(m => typeFilter((m.Type || m.TYPE || '').toUpperCase()));
+
+          const rows = [];
+          members.forEach(member => {
+            const status = getMembershipWindowEligibility(member.Joined, member.OrgJoined, windowEnd);
+            if (!status.valid || !status.eligible) return; // eligible members only
+            rows.push({
+              capid: member.CAPID,
+              memberName: `${member.NameLast}, ${member.NameFirst}`,
+              memberType: (member.Type || member.TYPE || 'UNKNOWN').toUpperCase(),
+              rank: member.Rank || 'N/A',
+              unit: member.memberUnitName || 'Unknown',
+              serviceSince: formatShortDate(status.serviceStart),
+              serviceSort: status.serviceStart.getTime(),
+              priorService: status.priorService
+            });
+          });
+
+          return rows.sort((a, b) => {
+            if (a.serviceSort !== b.serviceSort) return a.serviceSort - b.serviceSort; // earliest join first
+            return a.memberName.localeCompare(b.memberName);
+          });
+        };
+
+        // Crisis Service Ribbon (ICL 21-03): all active members who served at least one
+        // day from 1 Mar 2020 through 21 Oct 2022.
+        const generateCrisisServiceRibbonReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          const windowEnd = parseDateSafe('10/21/2022');
+          return generateMembershipWindowReport(
+            memberPool, windowEnd,
+            (t) => t === 'CADET' || t === 'SENIOR' || t === 'LIFE'
+          );
+        };
+
+        // Air Force Organizational Excellence Award (ICL 18-02): senior members (incl.
+        // fifty-year and life members) and cadet members with active membership for at
+        // least one day from 1 Oct 2012 through 31 Aug 2016.
+        const generateAFOEAReport = (membersOverride = null) => {
+          const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
+          const windowEnd = parseDateSafe('08/31/2016');
+          return generateMembershipWindowReport(
+            memberPool, windowEnd,
+            (t) => t === 'CADET' || t === 'SENIOR' || t === 'LIFE'
+          );
+        };
+
           const generateCadetProtectionReport = (membersOverride = null) => {
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             if (!memberPool.length || !getCadetProtectionStatus) return [];
@@ -23637,12 +23845,17 @@ window.importCapwatchZip = async function(file, onProgress) {
 
             const hasAnyFlight = totalPoweredFlights > 0 || backSeatRides > 0;
 
+            // Cadets are eligible for orientation flights only until age 18. Cadets
+            // 18 or older are no longer eligible for additional O-flights.
+            const ineligible = age !== null && age >= 18;
+
             rows.push({
               capid: cadet.CAPID,
               memberName: `${cadet.NameLast}, ${cadet.NameFirst}`,
               unit: cadet.memberUnitName,
               joinDate: cadet.Joined || 'N/A',
               age: age !== null ? age : 'N/A',
+              ineligible,
               hasAnyFlight,
               totalPoweredFlights,
               backSeatRides,
@@ -23651,8 +23864,10 @@ window.importCapwatchZip = async function(file, onProgress) {
             });
           });
 
-          // Sort: cadets with NO flights first (highlighted), then by name
+          // Sort: ineligible (age 18+) cadets to the bottom; within each group,
+          // cadets with NO flights first (highlighted), then by name.
           return rows.sort((a, b) => {
+            if (a.ineligible !== b.ineligible) return a.ineligible ? 1 : -1;
             if (a.hasAnyFlight !== b.hasAnyFlight) return a.hasAnyFlight ? 1 : -1;
             return a.memberName.localeCompare(b.memberName);
           });
@@ -25696,6 +25911,24 @@ window.importCapwatchZip = async function(file, onProgress) {
             accent: 'amber',
             tags: ['cadet', 'senior', 'membership'],
             generate: (members) => generateRedServiceRibbonReport(members)
+          },
+          {
+            id: 'crisis-service-ribbon',
+            title: 'Crisis Service Ribbon',
+            description: 'Members eligible for the Crisis Service Ribbon (ICL 21-03) — active membership for at least one day from 1 Mar 2020 through 21 Oct 2022',
+            icon: 'Award',
+            accent: 'amber',
+            tags: ['cadet', 'senior', 'membership', 'awards'],
+            generate: (members) => generateCrisisServiceRibbonReport(members)
+          },
+          {
+            id: 'afoea',
+            title: 'AF Organizational Excellence Award',
+            description: 'Members eligible for the Air Force Organizational Excellence Award (ICL 18-02) — active membership for at least one day from 1 Oct 2012 through 31 Aug 2016',
+            icon: 'Award',
+            accent: 'blue',
+            tags: ['cadet', 'senior', 'membership', 'awards'],
+            generate: (members) => generateAFOEAReport(members)
           }
         ];
 
@@ -27389,6 +27622,24 @@ window.importCapwatchZip = async function(file, onProgress) {
               { header: 'Entitlement', dataKey: 'entitlement' },
               { header: 'Next Milestone', dataKey: 'nextMilestone' },
               { header: 'Next Date', dataKey: 'nextDate' }
+            ],
+            'crisis-service-ribbon': [
+              { header: 'Member Name', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Service Since', dataKey: 'serviceSince' },
+              { header: 'Prior Service', dataKey: (row) => row.priorService ? 'Yes (verify)' : '' }
+            ],
+            'afoea': [
+              { header: 'Member Name', dataKey: 'memberName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Type', dataKey: 'memberType' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Unit', dataKey: 'unit' },
+              { header: 'Service Since', dataKey: 'serviceSince' },
+              { header: 'Prior Service', dataKey: (row) => row.priorService ? 'Yes (verify)' : '' }
             ]
             };
 

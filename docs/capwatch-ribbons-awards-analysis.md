@@ -34,6 +34,12 @@ supersede the "entitlement vs. awarded" recommendation that appears later in thi
 | 5 | Encampment Completion Status (`encampment-status`) | Improve | Cadet + Senior | `CadetActivities.Type` ⊇ `ENCAMP` | Added senior staff + Encampment Ribbon/clasps per CAPR 39‑3 §20.e (ribbon for the 1st, a clasp per additional; 5 bronze clasps roll up to 1 silver). Seniors listed only if they have an encampment record. |
 | 6 | CAC Ribbon basis (`cac-representatives`) | (existing) | Cadet + Senior | committee/duty data | CAC service is the ribbon basis; report already lists reps/advisors. |
 | 7 | Red Service Ribbon (`red-service-ribbon`) | New (rolled up from branch `2-Red-Service-Ribbon-Report`) | Cadet + Senior | `Member.txt` OrgJoined/Joined | **Longevity** ribbon (CAPR 39‑3 §21.b): ribbon at 2 yrs, bronze clasp at 5/10/15 (max 3), numbered longevity device at 20+ yrs. Service counted from earliest join (original OrgJoined persists across lapses/transfers). |
+| 8 | Crisis Service Ribbon (`crisis-service-ribbon`) | New | Cadet + Senior | `Member.txt` OrgJoined/Joined | **Membership-window** award (ICL 21-03): active membership ≥1 day from 1 Mar 2020 → 21 Oct 2022. Eligible = earliest join ≤ window end. Lists eligible members only; rejoiners flagged "prior svc" for verification. |
+| 9 | AF Organizational Excellence Award (`afoea`) | New | Cadet + Senior | `Member.txt` OrgJoined/Joined | **Membership-window** award (ICL 18-02): active membership ≥1 day from 1 Oct 2012 → 31 Aug 2016 (incl. 50-year/life). Same eligibility logic as #8. |
+
+> **CAPWATCH limitation for #7–#9:** the export carries no membership-gap history, so service is counted
+> from the earliest recorded join. Members who lapsed and rejoined (original join < current join) are flagged
+> "prior svc" so the awards officer can confirm they were actually active during the relevant window.
 
 > **Correction:** an earlier draft of this analysis (Tier 2 below) speculated that the Red Service Ribbon
 > tracks Senior Level II / `DAVIS`. That was wrong — the Red Service Ribbon is a **longevity** award keyed
