@@ -2486,10 +2486,36 @@
           if (!memberPool.length) return [];
 
           const activityRows = Array.isArray(dataFiles.cadetActivities) ? dataFiles.cadetActivities : [];
+
+          // Include cadets and senior members (incl. LIFE). The Encampment Ribbon is
+          // earned by cadets for completing an encampment and by seniors for serving on
+          // encampment staff; CadetActivities.txt records ENCAMP entries for both.
+          // PATRON members are not included.
+          const members = memberPool.filter(m => {
+            const memberType = (m.Type || m.TYPE || '').toUpperCase();
+            return memberType === 'CADET' || memberType === 'SENIOR' || memberType === 'LIFE';
+          });
+
+          // Encampment Ribbon (CAPR 39-3 §20.e): the first encampment earns the ribbon,
+          // each additional encampment adds a clasp (retroactive; clasps for repetitive
+          // awards). Clasps roll up per the CAPR 39-3 device convention: 1 silver clasp
+          // is worn in lieu of 5 bronze clasps.
+          const encampmentRibbonLabel = (n) => {
+            if (n <= 0) return '—';
+            if (n === 1) return 'Encampment Ribbon';
+            const clasps = n - 1;
+            const silver = Math.floor(clasps / 5);
+            const bronze = clasps % 5;
+            const parts = [];
+            if (silver > 0) parts.push(`${silver} silver clasp${silver > 1 ? 's' : ''}`);
+            if (bronze > 0) parts.push(`${bronze} bronze clasp${bronze > 1 ? 's' : ''}`);
+            return `Encampment Ribbon + ${parts.join(', ')}`;
+          };
+
           const rows = [];
 
-          memberPool.forEach(member => {
-            const memberType = (member.Type || member.TYPE || '').toUpperCase();
+          members.forEach(member => {
+            const memberType = (member.Type || member.TYPE || 'UNKNOWN').toUpperCase();
             const isCadet = memberType === 'CADET';
 
             const activities = activityRows.filter(a =>
@@ -2505,28 +2531,24 @@
 
             const count = encampments.length;
 
-            // Cadets are always listed (encampment is a cadet milestone, so the
-            // gap is actionable). Seniors are listed only when they have an
-            // encampment record (staffed/attended) so the ribbon shows for senior
-            // staff without flooding the roster with "not completed" seniors.
+            // Cadets are always listed (encampment is a cadet milestone, so the gap is
+            // actionable). Seniors appear only when they have an encampment record
+            // (staffed/attended) so the ribbon shows for senior staff without flooding
+            // the roster with seniors who never attended.
             if (!isCadet && count === 0) return;
-
-            // Encampment Ribbon: first attendance earns the ribbon; each
-            // additional attendance is a repeat award.
-            const ribbon = count === 0 ? 'None' : count === 1 ? 'Ribbon' : `Ribbon +${count - 1}`;
 
             rows.push({
               capid: member.CAPID,
               memberName: `${member.NameLast}, ${member.NameFirst}`,
+              memberType,
               unit: member.memberUnitName,
-              memberType: isCadet ? 'Cadet' : 'Senior',
               rank: member.Rank,
               encampmentStatus: count > 0 ? 'Completed' : 'Not Completed',
               completionDate: count > 0 ? (encampments[0].completed || 'N/A') : 'N/A',
-              ribbon,
               hasEncampment: count > 0,
               encampments,
-              count
+              count,
+              encampmentRibbon: encampmentRibbonLabel(count)
             });
           });
 
@@ -4738,8 +4760,8 @@
           },
           {
             id: 'encampment-status',
-            title: 'Encampment Ribbon',
-            description: 'Encampment completion for all cadets, plus senior staff who have attended, with repeat-attendance count',
+            title: 'Encampment Completion Status',
+            description: 'Cadets (encampment completion) and senior staff (encampment staff service), showing the Encampment Ribbon and clasps earned per CAPR 39-3 §20.e',
             icon: 'Tent',
             accent: 'blue',
             tags: ['cadet', 'senior', 'activities', 'awards', 'readiness'],
@@ -6416,12 +6438,12 @@
             'encampment-status': [
               { header: 'Member', dataKey: 'memberName' },
               { header: 'CAPID', dataKey: 'capid' },
-              { header: 'Unit', dataKey: 'unit' },
               { header: 'Type', dataKey: 'memberType' },
+              { header: 'Unit', dataKey: 'unit' },
               { header: 'Rank', dataKey: 'rank' },
               { header: 'Encampment', dataKey: 'encampmentStatus' },
               { header: 'Count', dataKey: 'count' },
-              { header: 'Ribbon', dataKey: 'ribbon' },
+              { header: 'Encampment Ribbon', dataKey: 'encampmentRibbon' },
               { header: 'Date', dataKey: 'completionDate' }
             ],
             'cadet-special-activities': [

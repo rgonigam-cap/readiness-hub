@@ -31,7 +31,7 @@ supersede the "entitlement vs. awarded" recommendation that appears later in thi
 | 2 | Yeager AE Award (`yeager-award`) | New | Senior | `SeniorAwards.txt` YEAGER | Full roster, earned date. |
 | 3 | Cadet Special Activities Ribbon (`cadet-special-activities`) | New | Cadet + Senior | `CadetActivities.txt` (denylist) | Participants only; ribbon + bronze star per extra activity. |
 | 4 | Leadership Ribbon (`leadership-ribbon`) | New | Senior | `SpecTrack.txt` TrackLevel | Technician = ribbon, Senior = +bronze star, Master = +silver star (highest rating). |
-| 5 | Encampment Ribbon (`encampment-status`) | Improve | Cadet + Senior | `CadetActivities.Type` ⊇ `ENCAMP` | Added senior staff + repeat‑attendance (clasp) count. |
+| 5 | Encampment Completion Status (`encampment-status`) | Improve | Cadet + Senior | `CadetActivities.Type` ⊇ `ENCAMP` | Added senior staff + Encampment Ribbon/clasps per CAPR 39‑3 §20.e (ribbon for the 1st, a clasp per additional; 5 bronze clasps roll up to 1 silver). Seniors listed only if they have an encampment record. |
 | 6 | CAC Ribbon basis (`cac-representatives`) | (existing) | Cadet + Senior | committee/duty data | CAC service is the ribbon basis; report already lists reps/advisors. |
 | 7 | Red Service Ribbon (`red-service-ribbon`) | New (rolled up from branch `2-Red-Service-Ribbon-Report`) | Cadet + Senior | `Member.txt` OrgJoined/Joined | **Longevity** ribbon (CAPR 39‑3 §21.b): ribbon at 2 yrs, bronze clasp at 5/10/15 (max 3), numbered longevity device at 20+ yrs. Service counted from earliest join (original OrgJoined persists across lapses/transfers). |
 
