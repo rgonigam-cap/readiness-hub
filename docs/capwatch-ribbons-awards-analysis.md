@@ -33,6 +33,11 @@ supersede the "entitlement vs. awarded" recommendation that appears later in thi
 | 4 | Leadership Ribbon (`leadership-ribbon`) | New | Senior | `SpecTrack.txt` TrackLevel | Technician = ribbon, Senior = +bronze star, Master = +silver star (highest rating). |
 | 5 | Encampment Ribbon (`encampment-status`) | Improve | Cadet + Senior | `CadetActivities.Type` ⊇ `ENCAMP` | Added senior staff + repeat‑attendance (clasp) count. |
 | 6 | CAC Ribbon basis (`cac-representatives`) | (existing) | Cadet + Senior | committee/duty data | CAC service is the ribbon basis; report already lists reps/advisors. |
+| 7 | Red Service Ribbon (`red-service-ribbon`) | New (rolled up from branch `2-Red-Service-Ribbon-Report`) | Cadet + Senior | `Member.txt` OrgJoined/Joined | **Longevity** ribbon (CAPR 39‑3 §21.b): ribbon at 2 yrs, bronze clasp at 5/10/15 (max 3), numbered longevity device at 20+ yrs. Service counted from earliest join (original OrgJoined persists across lapses/transfers). |
+
+> **Correction:** an earlier draft of this analysis (Tier 2 below) speculated that the Red Service Ribbon
+> tracks Senior Level II / `DAVIS`. That was wrong — the Red Service Ribbon is a **longevity** award keyed
+> to years of service, as implemented in report #7. Davis remains Level II in the Senior PD Level Awards report (#1).
 
 **Skipped:** Unit Citation / Squadron of Merit (no usable data — `OrgSquadron_Of_Merit.txt` is a legacy
 stats snapshot, verified by base64 decode). Standalone Membership Ribbon report (folded into #1 as Level I).
@@ -117,7 +122,7 @@ Not in the awards tables, but computable from data the app already syncs.
 | **Encampment Ribbon** | `CadetActivities.Type == 'ENCAMP'` (≥1 = entitled; row count ⇒ clasp/oak‑leaf count). Seniors who staff encampment also qualify. | **Improve** `encampment-status`: add "Ribbon entitled / # awards (clasps)" columns. |
 | **Cadet Special Activities (CSA) Ribbon** | `CadetActivities.Type` ∈ national‑activity set (`NCSA, COS, RCLS, NFAG, NFAJ, CFA‑*, SpaceOps, NESA, SUPTCFC, AFSPCFC…`); ≥1 attendance = entitled. | **Build** new "Cadet Activity Ribbons" report. |
 | **CAC Ribbon** | CAC service already resolved by `generateCACRepresentativesReport` (`Index.html:4447`) from committee/duty data. | **Improve**: flag current/!past CAC reps as ribbon‑entitled. |
-| **Red Service Ribbon** | Senior Level II complete (`SeniorLevel.LV2` / `DAVIS`). | **Build/extend** Tier‑1 roster. |
+| **Red Service Ribbon** | ~~Senior Level II complete~~ — **incorrect**; it is a longevity award (years of service from `Member.txt` OrgJoined/Joined). See §0 report #7. | **Built** (`red-service-ribbon`). |
 | **Leadership Ribbon (Technician)** | `SpecTrack.TrackLevel ∈ {TECHNICIAN, SENIOR, MASTER}` (per CAPP‑series guidance: Tech rating → Leadership Ribbon; bronze/silver star for Senior/Master). | **Build/extend** Tier‑1 roster. |
 | IACE / National Cadet Competition / National Color Guard ribbons | `CadetActivities.Type` if the corresponding code is present (none in this unit's sample). | Low priority; data‑dependent. |
 
