@@ -51,7 +51,7 @@
 
 <script type="text/babel">
 // --- APP METADATA ---
-const APP_VERSION = '1.10.12';  // Semantic version: major.minor.patch
+const APP_VERSION = '1.11.1';  // Semantic version: major.minor.patch
 
 // APP_CONFIG: Receives values from backend via getAppConfig()
 // These are fallback defaults - actual values loaded from Script Properties
@@ -1174,6 +1174,164 @@ const QUA_CADET_PROTECTION_COURSES = [
 
 // Yeager Award identifier for senior awards
 const QUA_YEAGER_AWARD_NAME = 'YEAGER';
+
+// ============================================================
+// COMMANDER TERM ESTIMATION
+// ------------------------------------------------------------
+// CAPWATCH does NOT record commander appointment terms — there is no
+// term-start or term-end field anywhere in the export. As an
+// approximation we treat the DateMod of a unit's non-assistant
+// "Commander" DutyPosition record as the assumed-command date and add a
+// standard 4-year term to estimate when the commander's term ends.
+//
+// This is an ESTIMATE ONLY. DateMod reflects the last time the duty
+// record was modified, which is usually — but not guaranteed to be —
+// the assumption-of-command date. Any UI that surfaces these values
+// MUST label them as estimates (see COMMANDER_TERM_DISCLAIMER).
+// ============================================================
+const COMMANDER_TERM_YEARS = 4;
+
+const COMMANDER_TERM_DISCLAIMER =
+  "Estimate only. CAPWATCH does not store commander appointment dates, so this is derived from the " +
+  "DateMod of the unit's Commander duty position plus a standard " + COMMANDER_TERM_YEARS +
+  "-year term. DateMod is the last time the record changed, which is usually — but not always — when " +
+  "the commander assumed command. Verify against unit records before acting.";
+
+// Days-remaining thresholds used to color-code how soon a term ends.
+const COMMANDER_TERM_THRESHOLDS = { critical: 90, warning: 180 };
+
+// Lightweight date parser (mirrors parseDateSafe, which is defined later
+// in the app scope and therefore not visible from this file).
+const parseCommanderTermDate = (value) => {
+  if (!value || value === '01/01/1900') return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const mdy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdy) {
+    const month = Number(mdy[1]), day = Number(mdy[2]), year = Number(mdy[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const parsed = new Date(year, month - 1, day);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// Classify how urgently a term is ending based on days remaining.
+// Returns 'expired' | 'critical' | 'warning' | 'ok' | 'unknown'.
+const getCommanderTermUrgency = (daysRemaining) => {
+  if (daysRemaining === null || daysRemaining === undefined) return 'unknown';
+  if (daysRemaining < 0) return 'expired';
+  if (daysRemaining <= COMMANDER_TERM_THRESHOLDS.critical) return 'critical';
+  if (daysRemaining <= COMMANDER_TERM_THRESHOLDS.warning) return 'warning';
+  return 'ok';
+};
+
+// Format an organization record as the Region-Wing-Unit label used
+// elsewhere in the app.
+const formatCommanderUnitLabel = (org) => {
+  if (!org) return 'Unknown Unit';
+  const region = org.Region || '';
+  const wing = org.Wing || '';
+  const unit = org.Unit ? String(org.Unit).replace(/^0+/, '').padStart(3, '0') : '000';
+  return [region, wing, unit].filter(Boolean).join('-') || 'Unknown Unit';
+};
+
+// Estimate the current commander's term for a single ORGID.
+// Returns null when the unit has no Commander duty record on file.
+const getCommanderTermForOrg = (dataFiles, orgId, today) => {
+  if (!dataFiles || !Array.isArray(dataFiles.duty)) return null;
+  const targetOrg = String(orgId || '').trim();
+  if (!targetOrg) return null;
+  const now = today instanceof Date ? today : new Date();
+
+  // Collect all non-assistant Commander records for this unit and keep the
+  // most recently modified one (i.e., the sitting commander).
+  const commanderRecords = dataFiles.duty.filter(d =>
+    String(d.ORGID || '').trim() === targetOrg &&
+    String(d.Duty || '').toUpperCase().trim() === 'COMMANDER' &&
+    String(d.Asst || '').trim() !== '1'
+  );
+  if (!commanderRecords.length) return null;
+
+  let chosen = commanderRecords[0];
+  let chosenDate = parseCommanderTermDate(chosen.DateMod);
+  commanderRecords.forEach(rec => {
+    const d = parseCommanderTermDate(rec.DateMod);
+    if (d && (!chosenDate || d > chosenDate)) {
+      chosen = rec;
+      chosenDate = d;
+    }
+  });
+
+  const org = (dataFiles.organization || []).find(o =>
+    String(o.ORGID || '').trim() === targetOrg
+  );
+  const member = (dataFiles.members || []).find(m =>
+    String(m.CAPID || '').trim() === String(chosen.CAPID || '').trim()
+  );
+
+  const assumedDate = chosenDate;
+  let estimatedEndDate = null;
+  let daysRemaining = null;
+  if (assumedDate) {
+    estimatedEndDate = new Date(assumedDate.getTime());
+    estimatedEndDate.setFullYear(estimatedEndDate.getFullYear() + COMMANDER_TERM_YEARS);
+    daysRemaining = Math.floor((estimatedEndDate - now) / (1000 * 60 * 60 * 24));
+  }
+
+  const commanderName = member
+    ? `${member.NameLast || ''}, ${member.NameFirst || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || 'Unknown'
+    : 'Unknown';
+
+  let daysRemainingText;
+  if (daysRemaining === null) daysRemainingText = 'Unknown';
+  else if (daysRemaining < 0) daysRemainingText = `Ended ${Math.abs(daysRemaining)} days ago`;
+  else daysRemainingText = `${daysRemaining} days`;
+
+  return {
+    orgId: targetOrg,
+    capid: chosen.CAPID || null,
+    commanderName,
+    rank: member ? (member.Rank || 'N/A') : 'N/A',
+    unitLabel: formatCommanderUnitLabel(org),
+    unitName: org && org.Name ? org.Name : '',
+    assumedDate,
+    assumedDateText: assumedDate ? assumedDate.toLocaleDateString() : 'Unknown',
+    estimatedEndDate,
+    estimatedEndText: estimatedEndDate ? estimatedEndDate.toLocaleDateString() : 'Unknown',
+    daysRemaining,
+    daysRemainingText,
+    urgency: getCommanderTermUrgency(daysRemaining),
+    hasDate: !!assumedDate,
+    isEstimate: true
+  };
+};
+
+// Estimate commander terms across a set of ORGIDs (used by the report).
+// Skips ORGIDs with no Commander record; sorts by soonest term end, with
+// undated commanders last.
+const computeCommanderTerms = (dataFiles, orgIds, today) => {
+  const now = today instanceof Date ? today : new Date();
+  const ids = Array.isArray(orgIds) ? orgIds : [];
+  const seen = new Set();
+  const rows = [];
+  ids.forEach(id => {
+    const key = String(id || '').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const info = getCommanderTermForOrg(dataFiles, key, now);
+    if (info) rows.push(info);
+  });
+  return rows.sort((a, b) => {
+    if (a.daysRemaining === null && b.daysRemaining === null) return 0;
+    if (a.daysRemaining === null) return 1;
+    if (b.daysRemaining === null) return -1;
+    return a.daysRemaining - b.daysRemaining;
+  });
+};
 
 </script>
 
@@ -10763,6 +10921,153 @@ const FeedbackTab = ({
   );
 };
 
+// CAPWATCH Setup Tab Component
+// Owner-only: stores eServices credentials (Base64-encoded) in the owner's
+// UserProperties via saveCapwatchCredentials(). The credential is never
+// displayed back; only configured/not-configured status is shown.
+const CapwatchSetupTab = ({ status, onSaved }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState(null);
+
+  const hasCredentials = !!(status && status.hasCredentials);
+  const orgId = status && status.orgId;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!username.trim() || !password) {
+      setSaveResult({ success: false, message: 'Please enter both your eServices username and password.' });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveResult(null);
+
+    if (window.google && window.google.script) {
+      window.google.script.run
+        .withSuccessHandler((result) => {
+          setIsSaving(false);
+          if (result && result.success) {
+            setSaveResult({ success: true, message: 'CAPWATCH credentials saved.' });
+            setUsername('');
+            setPassword('');
+            if (onSaved) onSaved();
+          } else {
+            setSaveResult({ success: false, message: 'Failed to save credentials. Please try again.' });
+          }
+        })
+        .withFailureHandler((error) => {
+          setIsSaving(false);
+          setSaveResult({ success: false, message: 'Error: ' + (error.message || error.toString()) });
+        })
+        .saveCapwatchCredentials(username.trim(), password);
+    } else {
+      setIsSaving(false);
+      setSaveResult({ success: false, message: 'Unable to connect to server. Please refresh and try again.' });
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <h3 className="font-bold text-slate-800 mb-3 flex items-center border-b pb-2">
+          <Icon name="Settings" className="w-4 h-4 mr-2 text-blue-600" />
+          CAPWATCH Auto-Download Credentials
+        </h3>
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-slate-700">
+          <p className="mb-2">Store the CAP eServices username and password used to download CAPWATCH data directly from the eServices API. The credentials are encoded and saved in the app owner's account properties — never in Script Properties or source code, and never shown back here.</p>
+          <p className="text-xs">Only the app owner can set these. They are read by <span className="font-mono bg-slate-200 px-1 rounded">checkCapwatchCredentials()</span> and used by <span className="font-mono bg-slate-200 px-1 rounded">getCapwatch()</span> and the <span className="font-mono bg-slate-200 px-1 rounded">downloadAndSync()</span> daily trigger.</p>
+        </div>
+      </section>
+
+      {/* Current status */}
+      <div className={`p-3 rounded-lg border flex items-start gap-3 ${hasCredentials ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+        <Icon name={hasCredentials ? 'CheckCircle' : 'AlertCircle'} className={`w-5 h-5 mt-0.5 flex-shrink-0 ${hasCredentials ? 'text-green-600' : 'text-amber-600'}`} />
+        <div className="text-sm">
+          <p className={`font-medium ${hasCredentials ? 'text-green-800' : 'text-amber-800'}`}>
+            {hasCredentials ? 'Credentials configured' : 'Not configured'}
+          </p>
+          <p className={`text-xs ${hasCredentials ? 'text-green-700' : 'text-amber-700'}`}>
+            {orgId ? ('Wing/unit ORGID: ' + orgId) : 'CAPWATCH_ORGID is not set in Script Properties yet.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Success message */}
+      {saveResult?.success && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-3">
+          <Icon name="CheckCircle" className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-green-800">Saved</p>
+            <p className="text-sm text-green-700">{saveResult.message}</p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+        <div>
+          <label htmlFor="capwatch-username" className="block text-sm font-medium text-slate-700 mb-1">eServices Username</label>
+          <input
+            id="capwatch-username"
+            type="text"
+            autoComplete="off"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Your CAP eServices username"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="capwatch-password" className="block text-sm font-medium text-slate-700 mb-1">eServices Password</label>
+          <input
+            id="capwatch-password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Your CAP eServices password"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        {/* Error message */}
+        {saveResult && !saveResult.success && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+            <Icon name="AlertCircle" className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-red-800">Could Not Save</p>
+              <p className="text-sm text-red-700">{saveResult.message}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={isSaving || !username.trim() || !password}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isSaving ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Icon name="Save" className="w-4 h-4" />
+                {hasCredentials ? 'Update Credentials' : 'Save Credentials'}
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 // Reference & Help Modal
 // Displays context-aware help with tabs for each app section
 const ReferenceModal = ({
@@ -10778,6 +11083,7 @@ const ReferenceModal = ({
   availableUnits
 }) => {
   const [activeReferenceTab, setActiveReferenceTab] = useState(activeTab || 'home');
+  const [capwatchStatus, setCapwatchStatus] = useState(null);
 
   // Sync with activeTab when modal opens
   React.useEffect(() => {
@@ -10785,6 +11091,23 @@ const ReferenceModal = ({
       setActiveReferenceTab(activeTab);
     }
   }, [isOpen, activeTab]);
+
+  // Load CAPWATCH setup status when the modal opens (owner-only; the backend
+  // returns { isAdmin: false } for everyone else, so the tab stays hidden).
+  const loadCapwatchStatus = React.useCallback(() => {
+    if (window.google && window.google.script) {
+      window.google.script.run
+        .withSuccessHandler((s) => setCapwatchStatus(s))
+        .withFailureHandler(() => setCapwatchStatus({ isAdmin: false }))
+        .getCapwatchSetupStatus();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      loadCapwatchStatus();
+    }
+  }, [isOpen, loadCapwatchStatus]);
 
   if (!isOpen) return null;
 
@@ -10797,6 +11120,11 @@ const ReferenceModal = ({
     { id: 'org', label: 'Org Chart', icon: 'Network' },
     { id: 'feedback', label: 'Feedback', icon: 'MessageSquare' }
   ];
+
+  // Owner-only: surface the CAPWATCH credential setup tab.
+  if (capwatchStatus?.isAdmin) {
+    tabs.push({ id: 'capwatch', label: 'CAPWATCH Setup', icon: 'Settings' });
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Help & Reference" maxWidthClass="max-w-4xl">
@@ -11426,6 +11754,11 @@ const ReferenceModal = ({
             availableUnits={availableUnits}
             onClose={onClose}
           />
+        )}
+
+        {/* CAPWATCH SETUP TAB (owner only) */}
+        {activeReferenceTab === 'capwatch' && capwatchStatus?.isAdmin && (
+          <CapwatchSetupTab status={capwatchStatus} onSaved={loadCapwatchStatus} />
         )}
 
       </div>
@@ -14890,6 +15223,14 @@ function UnitOverviewSection({
     });
   }, [viewMode, dataFiles.members, unitFilter]);
 
+  // Estimated commander term for the selected unit. CAPWATCH has no
+  // appointment/term data, so this is derived from the Commander duty
+  // position's DateMod + a standard 4-year term (see ConfigConstants).
+  const commanderTerm = useMemo(() => {
+    if (!unitFilter) return null;
+    return getCommanderTermForOrg(dataFiles, unitFilter, new Date());
+  }, [dataFiles.duty, dataFiles.organization, dataFiles.members, unitFilter]);
+
   // Dynamic header text based on view mode
   const getHeaderInfo = () => {
     if (viewMode === 'aggregate') {
@@ -14965,6 +15306,64 @@ function UnitOverviewSection({
           )}
         </div>
       </div>
+
+      {/* Commander Term (Estimated) - highlights commanders nearing end of term */}
+      {commanderTerm && (
+        <div className={`rounded-xl border shadow-sm p-4 ${
+          commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
+          commanderTerm.urgency === 'critical' ? 'bg-orange-50 border-orange-200' :
+          commanderTerm.urgency === 'warning' ? 'bg-amber-50 border-amber-200' :
+          'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-white/70 border border-slate-200">
+                <Icon name="CalendarClock" className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs uppercase text-slate-500 font-bold tracking-wide">Commander Term (Estimated)</p>
+                  <HelpTooltip title="How this is estimated">
+                    {COMMANDER_TERM_DISCLAIMER}
+                  </HelpTooltip>
+                </div>
+                <p className="text-base font-bold text-slate-900 mt-0.5">
+                  {commanderTerm.rank && commanderTerm.rank !== 'N/A' ? `${commanderTerm.rank} ` : ''}{commanderTerm.commanderName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {commanderTerm.unitLabel}{commanderTerm.unitName ? ` · ${commanderTerm.unitName}` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed (DateMod)</div>
+                <div className="font-semibold text-slate-800">{commanderTerm.assumedDateText}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Est. Term End</div>
+                <div className="font-semibold text-slate-800">{commanderTerm.estimatedEndText}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold mb-0.5">Est. Remaining</div>
+                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                  commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                  commanderTerm.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
+                  commanderTerm.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                  commanderTerm.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
+                  'bg-emerald-100 text-emerald-800'
+                }`}>
+                  <Icon name="Clock" className="w-3 h-3 mr-1" />
+                  {commanderTerm.daysRemainingText}
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-2 italic">
+            Estimated from the Commander duty position's CAPWATCH DateMod + a standard {COMMANDER_TERM_YEARS}-year term — not an official appointment record.
+          </p>
+        </div>
+      )}
 
       {/* Dashboard Sections */}
       <div className="space-y-3">
@@ -17378,6 +17777,71 @@ function ReportsSection(props) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Senior Report: Commander Terms Ending Soon (estimated) */}
+        {selectedReport.type === 'commander-terms' && (
+          <div>
+            <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 mb-4">
+              <p className="text-sm text-amber-900">
+                <strong>Estimated Commander Terms:</strong> {COMMANDER_TERM_DISCLAIMER}
+              </p>
+            </div>
+
+            {selectedReport.data.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <Icon name="Info" className="w-16 h-16 mx-auto mb-3 opacity-20" />
+                <p className="font-medium">No Commander duty positions found for the units in scope.</p>
+                <p className="text-xs mt-1">Enable "Include Sub-Units" to estimate terms for subordinate unit commanders.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Unit</th>
+                      <th className="px-3 py-2 text-left">Commander</th>
+                      <th className="px-3 py-2 text-left">CAPID</th>
+                      <th className="px-3 py-2 text-left">Rank</th>
+                      <th className="px-3 py-2 text-left">Assumed (DateMod)</th>
+                      <th className="px-3 py-2 text-left">Est. Term End</th>
+                      <th className="px-3 py-2 text-left">Est. Time Remaining</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedReport.data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="px-3 py-2">
+                          <div className="font-bold text-slate-900">{row.unitLabel}</div>
+                          {row.unitName && <div className="text-xs text-slate-500">{row.unitName}</div>}
+                        </td>
+                        <td className="px-3 py-2 text-slate-800">{row.commanderName}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-slate-700">{row.capid}</td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.rank}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.assumedDateText}</td>
+                        <td className="px-3 py-2 text-xs text-slate-700">{row.estimatedEndText}</td>
+                        <td className="px-3 py-2">
+                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                            row.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                            row.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
+                            row.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                            row.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
+                            'bg-emerald-100 text-emerald-800'
+                          }`}>
+                            <Icon name="Clock" className="w-3 h-3 mr-1" />
+                            {row.daysRemainingText}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[11px] text-slate-400 mt-2 italic">
+                  Estimated dates only — not official appointment records.
+                </p>
               </div>
             )}
           </div>
@@ -22245,6 +22709,15 @@ window.importCapwatchZip = async function(file, onProgress) {
           return rows.sort((a, b) => a.daysUntil - b.daysUntil);
         };
 
+        // Estimated commander terms for the current unit scope. CAPWATCH has no
+        // appointment/term data, so this is derived from the Commander duty
+        // position's DateMod + a standard 4-year term (see ConfigConstants).
+        const generateCommanderTermsReport = () => {
+          if (!unitFilter) return [];
+          const scopeOrgIds = showAllDescendants ? getDescendantOrgIds(unitFilter) : [unitFilter];
+          return computeCommanderTerms(dataFiles, scopeOrgIds, new Date());
+        };
+
           const generateCadetProtectionReport = (membersOverride = null) => {
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             if (!memberPool.length || !getCadetProtectionStatus) return [];
@@ -24559,6 +25032,15 @@ window.importCapwatchZip = async function(file, onProgress) {
             tags: ['cadet', 'senior', 'membership', 'compliance'],
             generate: (members) => generateMembershipLapseReport(members)
           },
+          {
+            id: 'commander-terms',
+            title: 'Commander Terms Ending Soon',
+            description: 'Estimated command-term end dates for each unit in scope — a standard 4-year term measured from the Commander duty position DateMod. Estimate only; CAPWATCH does not store appointment dates.',
+            icon: 'CalendarClock',
+            accent: 'amber',
+            tags: ['senior', 'leadership', 'readiness'],
+            generate: () => generateCommanderTermsReport()
+          },
             {
               id: 'cadet-protection',
               title: 'Cadet Protection Training',
@@ -26182,6 +26664,15 @@ window.importCapwatchZip = async function(file, onProgress) {
               { header: 'Expiration', dataKey: 'expiration' },
               { header: 'Days Until', dataKey: 'daysUntil' }
             ],
+            'commander-terms': [
+              { header: 'Unit', dataKey: 'unitLabel' },
+              { header: 'Commander', dataKey: 'commanderName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Assumed (DateMod)', dataKey: 'assumedDateText' },
+              { header: 'Est. Term End', dataKey: 'estimatedEndText' },
+              { header: 'Days Remaining', dataKey: 'daysRemainingText' }
+            ],
             'cadet-protection': [
               { header: 'Member', dataKey: 'memberName' },
               { header: 'CAPID', dataKey: 'capid' },
@@ -27686,15 +28177,7 @@ window.importCapwatchZip = async function(file, onProgress) {
               <div className="spinner mb-4"></div>
               <h2 className="text-xl font-bold text-slate-800">Loading {window.APP_CONFIG?.appShortName || APP_SHORT_NAME} <span className="text-xs font-normal bg-green-600 text-white px-1.5 py-0.5 rounded ml-1">PREVIEW</span>...</h2>
               <p className="text-slate-500 mt-2 text-sm">{loadingStatus}</p>
-  
-            {showZipImportModal && (
-              <ZipImportModal
-                isOpen={showZipImportModal}
-                onImport={handleZipImport}
-                onClose={null}
-              />
-            )}
-          </div>
+            </div>
           );
         }
         
@@ -27794,7 +28277,8 @@ window.importCapwatchZip = async function(file, onProgress) {
                       {tab.label}
                     </button>
                   ))}
-                                  <button
+
+                  <button
                     onClick={() => {
                       setShowZipImportModal(true);
                       setIsNavOpen(false);
@@ -28013,6 +28497,14 @@ window.importCapwatchZip = async function(file, onProgress) {
                 member={selectedMemberProfile}
                 dataService={dataService}
                 allQualifications={dataService.getAllESAchievements ? dataService.getAllESAchievements() : []}
+              />
+            )}
+
+            {showZipImportModal && (
+              <ZipImportModal
+                isOpen={showZipImportModal}
+                onImport={handleZipImport}
+                onClose={null}
               />
             )}
           </div>

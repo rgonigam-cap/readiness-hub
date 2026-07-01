@@ -1124,4 +1124,162 @@ const QUA_CADET_PROTECTION_COURSES = [
 // Yeager Award identifier for senior awards
 const QUA_YEAGER_AWARD_NAME = 'YEAGER';
 
+// ============================================================
+// COMMANDER TERM ESTIMATION
+// ------------------------------------------------------------
+// CAPWATCH does NOT record commander appointment terms — there is no
+// term-start or term-end field anywhere in the export. As an
+// approximation we treat the DateMod of a unit's non-assistant
+// "Commander" DutyPosition record as the assumed-command date and add a
+// standard 4-year term to estimate when the commander's term ends.
+//
+// This is an ESTIMATE ONLY. DateMod reflects the last time the duty
+// record was modified, which is usually — but not guaranteed to be —
+// the assumption-of-command date. Any UI that surfaces these values
+// MUST label them as estimates (see COMMANDER_TERM_DISCLAIMER).
+// ============================================================
+const COMMANDER_TERM_YEARS = 4;
+
+const COMMANDER_TERM_DISCLAIMER =
+  "Estimate only. CAPWATCH does not store commander appointment dates, so this is derived from the " +
+  "DateMod of the unit's Commander duty position plus a standard " + COMMANDER_TERM_YEARS +
+  "-year term. DateMod is the last time the record changed, which is usually — but not always — when " +
+  "the commander assumed command. Verify against unit records before acting.";
+
+// Days-remaining thresholds used to color-code how soon a term ends.
+const COMMANDER_TERM_THRESHOLDS = { critical: 90, warning: 180 };
+
+// Lightweight date parser (mirrors parseDateSafe, which is defined later
+// in the app scope and therefore not visible from this file).
+const parseCommanderTermDate = (value) => {
+  if (!value || value === '01/01/1900') return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const mdy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mdy) {
+    const month = Number(mdy[1]), day = Number(mdy[2]), year = Number(mdy[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const parsed = new Date(year, month - 1, day);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// Classify how urgently a term is ending based on days remaining.
+// Returns 'expired' | 'critical' | 'warning' | 'ok' | 'unknown'.
+const getCommanderTermUrgency = (daysRemaining) => {
+  if (daysRemaining === null || daysRemaining === undefined) return 'unknown';
+  if (daysRemaining < 0) return 'expired';
+  if (daysRemaining <= COMMANDER_TERM_THRESHOLDS.critical) return 'critical';
+  if (daysRemaining <= COMMANDER_TERM_THRESHOLDS.warning) return 'warning';
+  return 'ok';
+};
+
+// Format an organization record as the Region-Wing-Unit label used
+// elsewhere in the app.
+const formatCommanderUnitLabel = (org) => {
+  if (!org) return 'Unknown Unit';
+  const region = org.Region || '';
+  const wing = org.Wing || '';
+  const unit = org.Unit ? String(org.Unit).replace(/^0+/, '').padStart(3, '0') : '000';
+  return [region, wing, unit].filter(Boolean).join('-') || 'Unknown Unit';
+};
+
+// Estimate the current commander's term for a single ORGID.
+// Returns null when the unit has no Commander duty record on file.
+const getCommanderTermForOrg = (dataFiles, orgId, today) => {
+  if (!dataFiles || !Array.isArray(dataFiles.duty)) return null;
+  const targetOrg = String(orgId || '').trim();
+  if (!targetOrg) return null;
+  const now = today instanceof Date ? today : new Date();
+
+  // Collect all non-assistant Commander records for this unit and keep the
+  // most recently modified one (i.e., the sitting commander).
+  const commanderRecords = dataFiles.duty.filter(d =>
+    String(d.ORGID || '').trim() === targetOrg &&
+    String(d.Duty || '').toUpperCase().trim() === 'COMMANDER' &&
+    String(d.Asst || '').trim() !== '1'
+  );
+  if (!commanderRecords.length) return null;
+
+  let chosen = commanderRecords[0];
+  let chosenDate = parseCommanderTermDate(chosen.DateMod);
+  commanderRecords.forEach(rec => {
+    const d = parseCommanderTermDate(rec.DateMod);
+    if (d && (!chosenDate || d > chosenDate)) {
+      chosen = rec;
+      chosenDate = d;
+    }
+  });
+
+  const org = (dataFiles.organization || []).find(o =>
+    String(o.ORGID || '').trim() === targetOrg
+  );
+  const member = (dataFiles.members || []).find(m =>
+    String(m.CAPID || '').trim() === String(chosen.CAPID || '').trim()
+  );
+
+  const assumedDate = chosenDate;
+  let estimatedEndDate = null;
+  let daysRemaining = null;
+  if (assumedDate) {
+    estimatedEndDate = new Date(assumedDate.getTime());
+    estimatedEndDate.setFullYear(estimatedEndDate.getFullYear() + COMMANDER_TERM_YEARS);
+    daysRemaining = Math.floor((estimatedEndDate - now) / (1000 * 60 * 60 * 24));
+  }
+
+  const commanderName = member
+    ? `${member.NameLast || ''}, ${member.NameFirst || ''}`.replace(/^,\s*|,\s*$/g, '').trim() || 'Unknown'
+    : 'Unknown';
+
+  let daysRemainingText;
+  if (daysRemaining === null) daysRemainingText = 'Unknown';
+  else if (daysRemaining < 0) daysRemainingText = `Ended ${Math.abs(daysRemaining)} days ago`;
+  else daysRemainingText = `${daysRemaining} days`;
+
+  return {
+    orgId: targetOrg,
+    capid: chosen.CAPID || null,
+    commanderName,
+    rank: member ? (member.Rank || 'N/A') : 'N/A',
+    unitLabel: formatCommanderUnitLabel(org),
+    unitName: org && org.Name ? org.Name : '',
+    assumedDate,
+    assumedDateText: assumedDate ? assumedDate.toLocaleDateString() : 'Unknown',
+    estimatedEndDate,
+    estimatedEndText: estimatedEndDate ? estimatedEndDate.toLocaleDateString() : 'Unknown',
+    daysRemaining,
+    daysRemainingText,
+    urgency: getCommanderTermUrgency(daysRemaining),
+    hasDate: !!assumedDate,
+    isEstimate: true
+  };
+};
+
+// Estimate commander terms across a set of ORGIDs (used by the report).
+// Skips ORGIDs with no Commander record; sorts by soonest term end, with
+// undated commanders last.
+const computeCommanderTerms = (dataFiles, orgIds, today) => {
+  const now = today instanceof Date ? today : new Date();
+  const ids = Array.isArray(orgIds) ? orgIds : [];
+  const seen = new Set();
+  const rows = [];
+  ids.forEach(id => {
+    const key = String(id || '').trim();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const info = getCommanderTermForOrg(dataFiles, key, now);
+    if (info) rows.push(info);
+  });
+  return rows.sort((a, b) => {
+    if (a.daysRemaining === null && b.daysRemaining === null) return 0;
+    if (a.daysRemaining === null) return 1;
+    if (b.daysRemaining === null) return -1;
+    return a.daysRemaining - b.daysRemaining;
+  });
+};
+
 </script>

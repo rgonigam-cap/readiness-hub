@@ -2021,6 +2021,15 @@
           return rows.sort((a, b) => a.daysUntil - b.daysUntil);
         };
 
+        // Estimated commander terms for the current unit scope. CAPWATCH has no
+        // appointment/term data, so this is derived from the Commander duty
+        // position's DateMod + a standard 4-year term (see ConfigConstants).
+        const generateCommanderTermsReport = () => {
+          if (!unitFilter) return [];
+          const scopeOrgIds = showAllDescendants ? getDescendantOrgIds(unitFilter) : [unitFilter];
+          return computeCommanderTerms(dataFiles, scopeOrgIds, new Date());
+        };
+
           const generateCadetProtectionReport = (membersOverride = null) => {
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             if (!memberPool.length || !getCadetProtectionStatus) return [];
@@ -4335,6 +4344,15 @@
             tags: ['cadet', 'senior', 'membership', 'compliance'],
             generate: (members) => generateMembershipLapseReport(members)
           },
+          {
+            id: 'commander-terms',
+            title: 'Commander Terms Ending Soon',
+            description: 'Estimated command-term end dates for each unit in scope — a standard 4-year term measured from the Commander duty position DateMod. Estimate only; CAPWATCH does not store appointment dates.',
+            icon: 'CalendarClock',
+            accent: 'amber',
+            tags: ['senior', 'leadership', 'readiness'],
+            generate: () => generateCommanderTermsReport()
+          },
             {
               id: 'cadet-protection',
               title: 'Cadet Protection Training',
@@ -5957,6 +5975,15 @@
               { header: 'Rank', dataKey: 'rank' },
               { header: 'Expiration', dataKey: 'expiration' },
               { header: 'Days Until', dataKey: 'daysUntil' }
+            ],
+            'commander-terms': [
+              { header: 'Unit', dataKey: 'unitLabel' },
+              { header: 'Commander', dataKey: 'commanderName' },
+              { header: 'CAPID', dataKey: 'capid' },
+              { header: 'Rank', dataKey: 'rank' },
+              { header: 'Assumed (DateMod)', dataKey: 'assumedDateText' },
+              { header: 'Est. Term End', dataKey: 'estimatedEndText' },
+              { header: 'Days Remaining', dataKey: 'daysRemainingText' }
             ],
             'cadet-protection': [
               { header: 'Member', dataKey: 'memberName' },

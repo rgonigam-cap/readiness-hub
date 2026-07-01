@@ -2141,6 +2141,14 @@ function UnitOverviewSection({
     });
   }, [viewMode, dataFiles.members, unitFilter]);
 
+  // Estimated commander term for the selected unit. CAPWATCH has no
+  // appointment/term data, so this is derived from the Commander duty
+  // position's DateMod + a standard 4-year term (see ConfigConstants).
+  const commanderTerm = useMemo(() => {
+    if (!unitFilter) return null;
+    return getCommanderTermForOrg(dataFiles, unitFilter, new Date());
+  }, [dataFiles.duty, dataFiles.organization, dataFiles.members, unitFilter]);
+
   // Dynamic header text based on view mode
   const getHeaderInfo = () => {
     if (viewMode === 'aggregate') {
@@ -2216,6 +2224,64 @@ function UnitOverviewSection({
           )}
         </div>
       </div>
+
+      {/* Commander Term (Estimated) - highlights commanders nearing end of term */}
+      {commanderTerm && (
+        <div className={`rounded-xl border shadow-sm p-4 ${
+          commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
+          commanderTerm.urgency === 'critical' ? 'bg-orange-50 border-orange-200' :
+          commanderTerm.urgency === 'warning' ? 'bg-amber-50 border-amber-200' :
+          'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-white/70 border border-slate-200">
+                <Icon name="CalendarClock" className="w-5 h-5 text-slate-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs uppercase text-slate-500 font-bold tracking-wide">Commander Term (Estimated)</p>
+                  <HelpTooltip title="How this is estimated">
+                    {COMMANDER_TERM_DISCLAIMER}
+                  </HelpTooltip>
+                </div>
+                <p className="text-base font-bold text-slate-900 mt-0.5">
+                  {commanderTerm.rank && commanderTerm.rank !== 'N/A' ? `${commanderTerm.rank} ` : ''}{commanderTerm.commanderName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {commanderTerm.unitLabel}{commanderTerm.unitName ? ` · ${commanderTerm.unitName}` : ''}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed (DateMod)</div>
+                <div className="font-semibold text-slate-800">{commanderTerm.assumedDateText}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Est. Term End</div>
+                <div className="font-semibold text-slate-800">{commanderTerm.estimatedEndText}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold mb-0.5">Est. Remaining</div>
+                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
+                  commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                  commanderTerm.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
+                  commanderTerm.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                  commanderTerm.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
+                  'bg-emerald-100 text-emerald-800'
+                }`}>
+                  <Icon name="Clock" className="w-3 h-3 mr-1" />
+                  {commanderTerm.daysRemainingText}
+                </span>
+              </div>
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-2 italic">
+            Estimated from the Commander duty position's CAPWATCH DateMod + a standard {COMMANDER_TERM_YEARS}-year term — not an official appointment record.
+          </p>
+        </div>
+      )}
 
       {/* Dashboard Sections */}
       <div className="space-y-3">
