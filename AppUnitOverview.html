@@ -2228,9 +2228,8 @@ function UnitOverviewSection({
       {/* Commander Term (Estimated) - highlights commanders nearing end of term */}
       {commanderTerm && (
         <div className={`rounded-xl border shadow-sm p-4 ${
-          commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
-          commanderTerm.urgency === 'critical' ? 'bg-orange-50 border-orange-200' :
-          commanderTerm.urgency === 'warning' ? 'bg-amber-50 border-amber-200' :
+          commanderTerm.urgency === 'critical' || commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
+          commanderTerm.urgency === 'warning' ? 'bg-orange-50 border-orange-200' :
           'bg-white border-slate-200'
         }`}>
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -2255,7 +2254,7 @@ function UnitOverviewSection({
             </div>
             <div className="flex items-center gap-4 text-sm">
               <div>
-                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed (DateMod)</div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed</div>
                 <div className="font-semibold text-slate-800">{commanderTerm.assumedDateText}</div>
               </div>
               <div>
@@ -2265,9 +2264,8 @@ function UnitOverviewSection({
               <div>
                 <div className="text-[10px] uppercase text-slate-500 font-bold mb-0.5">Est. Remaining</div>
                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
-                  commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
-                  commanderTerm.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
-                  commanderTerm.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                  commanderTerm.urgency === 'critical' || commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                  commanderTerm.urgency === 'warning' ? 'bg-orange-100 text-orange-800' :
                   commanderTerm.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
                   'bg-emerald-100 text-emerald-800'
                 }`}>
@@ -2278,7 +2276,7 @@ function UnitOverviewSection({
             </div>
           </div>
           <p className="text-[11px] text-slate-400 mt-2 italic">
-            Estimated from the Commander duty position's CAPWATCH DateMod + a standard {COMMANDER_TERM_YEARS}-year term — not an official appointment record.
+            Estimated from the Commander duty position's "Date Modified" + a standard {COMMANDER_TERM_YEARS}-year term.
           </p>
         </div>
       )}

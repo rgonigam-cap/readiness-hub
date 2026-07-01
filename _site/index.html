@@ -15310,9 +15310,8 @@ function UnitOverviewSection({
       {/* Commander Term (Estimated) - highlights commanders nearing end of term */}
       {commanderTerm && (
         <div className={`rounded-xl border shadow-sm p-4 ${
-          commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
-          commanderTerm.urgency === 'critical' ? 'bg-orange-50 border-orange-200' :
-          commanderTerm.urgency === 'warning' ? 'bg-amber-50 border-amber-200' :
+          commanderTerm.urgency === 'critical' || commanderTerm.urgency === 'expired' ? 'bg-red-50 border-red-200' :
+          commanderTerm.urgency === 'warning' ? 'bg-orange-50 border-orange-200' :
           'bg-white border-slate-200'
         }`}>
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -15337,7 +15336,7 @@ function UnitOverviewSection({
             </div>
             <div className="flex items-center gap-4 text-sm">
               <div>
-                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed (DateMod)</div>
+                <div className="text-[10px] uppercase text-slate-500 font-bold">Assumed</div>
                 <div className="font-semibold text-slate-800">{commanderTerm.assumedDateText}</div>
               </div>
               <div>
@@ -15347,9 +15346,8 @@ function UnitOverviewSection({
               <div>
                 <div className="text-[10px] uppercase text-slate-500 font-bold mb-0.5">Est. Remaining</div>
                 <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
-                  commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
-                  commanderTerm.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
-                  commanderTerm.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                  commanderTerm.urgency === 'critical' || commanderTerm.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                  commanderTerm.urgency === 'warning' ? 'bg-orange-100 text-orange-800' :
                   commanderTerm.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
                   'bg-emerald-100 text-emerald-800'
                 }`}>
@@ -15360,7 +15358,7 @@ function UnitOverviewSection({
             </div>
           </div>
           <p className="text-[11px] text-slate-400 mt-2 italic">
-            Estimated from the Commander duty position's CAPWATCH DateMod + a standard {COMMANDER_TERM_YEARS}-year term — not an official appointment record.
+            Estimated from the Commander duty position's "Date Modified" + a standard {COMMANDER_TERM_YEARS}-year term.
           </p>
         </div>
       )}
@@ -17806,7 +17804,7 @@ function ReportsSection(props) {
                       <th className="px-3 py-2 text-left">Commander</th>
                       <th className="px-3 py-2 text-left">CAPID</th>
                       <th className="px-3 py-2 text-left">Rank</th>
-                      <th className="px-3 py-2 text-left">Assumed (DateMod)</th>
+                      <th className="px-3 py-2 text-left">Assumed</th>
                       <th className="px-3 py-2 text-left">Est. Term End</th>
                       <th className="px-3 py-2 text-left">Est. Time Remaining</th>
                     </tr>
@@ -17825,9 +17823,8 @@ function ReportsSection(props) {
                         <td className="px-3 py-2 text-xs text-slate-700">{row.estimatedEndText}</td>
                         <td className="px-3 py-2">
                           <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${
-                            row.urgency === 'expired' ? 'bg-red-100 text-red-800' :
-                            row.urgency === 'critical' ? 'bg-orange-100 text-orange-800' :
-                            row.urgency === 'warning' ? 'bg-amber-100 text-amber-800' :
+                            row.urgency === 'critical' || row.urgency === 'expired' ? 'bg-red-100 text-red-800' :
+                            row.urgency === 'warning' ? 'bg-orange-100 text-orange-800' :
                             row.urgency === 'unknown' ? 'bg-slate-100 text-slate-600' :
                             'bg-emerald-100 text-emerald-800'
                           }`}>
@@ -25035,7 +25032,7 @@ window.importCapwatchZip = async function(file, onProgress) {
           {
             id: 'commander-terms',
             title: 'Commander Terms Ending Soon',
-            description: 'Estimated command-term end dates for each unit in scope — a standard 4-year term measured from the Commander duty position DateMod. Estimate only; CAPWATCH does not store appointment dates.',
+            description: 'Estimated command-term end dates for each unit in scope — a standard 4-year term measured from the modification date on the Commander duty position. Estimate only; CAPWATCH does not store appointment dates.',
             icon: 'CalendarClock',
             accent: 'amber',
             tags: ['senior', 'leadership', 'readiness'],
@@ -26669,7 +26666,7 @@ window.importCapwatchZip = async function(file, onProgress) {
               { header: 'Commander', dataKey: 'commanderName' },
               { header: 'CAPID', dataKey: 'capid' },
               { header: 'Rank', dataKey: 'rank' },
-              { header: 'Assumed (DateMod)', dataKey: 'assumedDateText' },
+              { header: 'Assumed', dataKey: 'assumedDateText' },
               { header: 'Est. Term End', dataKey: 'estimatedEndText' },
               { header: 'Days Remaining', dataKey: 'daysRemainingText' }
             ],
