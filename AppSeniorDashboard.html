@@ -291,8 +291,9 @@ function SeniorDashboard(props) {
                       {m.NameLast}, {m.NameFirst}
                     </button>
                     <div className="text-xs text-slate-500 font-mono">{m.memberUnitName} • #{m.CAPID}</div>
-                    <div className="text-xs text-slate-600 mt-1 flex items-center gap-2">
+                    <div className="text-xs text-slate-600 mt-1 flex items-center flex-wrap gap-2">
                       <span className="font-semibold text-blue-700">{m.Rank}</span>
+                      <MemberStatusBadge type={m.Type} />
                       {promo && (
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${promoReady ? 'bg-green-100 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
                           {promoReady ? 'Eligible' : 'Next: ' + promo.nextRank}
@@ -441,6 +442,7 @@ function SeniorDashboard(props) {
                       <div onClick={(e) => { e.stopPropagation(); setPromotionMember(m); }} className="text-xs text-blue-600 cursor-pointer hover:text-blue-800 font-medium flex items-center mt-0.5 group w-max">
                               {m.Rank} | #{m.CAPID} <Icon name="ChevronRight" className="w-3 h-3 ml-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
+                      <div className="mt-1"><MemberStatusBadge type={m.Type} /></div>
                     </div>
                   </div>
                   </td>

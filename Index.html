@@ -886,7 +886,7 @@
           const capid = String(member.CAPID || '').trim();
           const memberType = String(member.Type || member.TYPE || '').toUpperCase();
           const isCadet = memberType === 'CADET';
-          const isSenior = memberType === 'SENIOR' || memberType === 'LIFE';
+          const isSenior = memberType === 'SENIOR' || memberType === 'LIFE' || memberType === 'FIFTY YEAR';
           const age = getAgeYears(member.DOB);
           const basicRequired = isSenior || (isCadet && age !== null && age >= 18);
           const basicEligible = isCadet && age !== null && age >= 17;
@@ -1163,7 +1163,7 @@
             const status = String(m.MbrStatus || "").toUpperCase();
             return validOrgIds.includes(m.ORGID) && status === "ACTIVE";
           });
-          const seniors = unitMembers.filter(m => (m.Type || m.TYPE) === "SENIOR" || (m.Type || m.TYPE) === "LIFE").length;
+          const seniors = unitMembers.filter(m => (m.Type || m.TYPE) === "SENIOR" || (m.Type || m.TYPE) === "LIFE" || (m.Type || m.TYPE) === "FIFTY YEAR").length;
           const cadets = unitMembers.filter(m => (m.Type || m.TYPE) === "CADET").length;
           return { total: unitMembers.length, seniors, cadets };
         }, [dataFiles.members, unitFilter, showAllDescendants]);
@@ -1653,7 +1653,7 @@
 
           const seniorsOnly = memberPool.filter(m => {
             const type = (m.Type || m.TYPE || '').toUpperCase();
-            return type === 'SENIOR' || type === 'LIFE';
+            return type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR';
           });
 
           const rows = [];
@@ -1693,7 +1693,7 @@
 
           const seniorsOnly = memberPool.filter(m => {
             const type = (m.Type || m.TYPE || '').toUpperCase();
-            return type === 'SENIOR' || type === 'LIFE';
+            return type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR';
           });
 
           const rows = [];
@@ -1744,7 +1744,7 @@
 
           const seniorsOnly = memberPool.filter(m => {
             const type = (m.Type || m.TYPE || '').toUpperCase();
-            return type === 'SENIOR' || type === 'LIFE';
+            return type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR';
           });
 
           const rows = [];
@@ -1988,10 +1988,10 @@
           const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
           if (!memberPool.length) return [];
 
-          // Include both seniors (including LIFE members) and cadets
+          // Include both seniors (including LIFE and FIFTY YEAR members) and cadets
           const activeMembers = memberPool.filter(m => {
             const memberType = (m.Type || m.TYPE || '').toUpperCase();
-            return memberType === 'CADET' || memberType === 'SENIOR' || memberType === 'LIFE';
+            return memberType === 'CADET' || memberType === 'SENIOR' || memberType === 'LIFE' || memberType === 'FIFTY YEAR';
           });
 
           const rows = [];
@@ -2110,7 +2110,7 @@
             const memberPool = Array.isArray(membersOverride) ? membersOverride : processedData;
             const seniorsOnly = memberPool.filter(m => {
               const type = String(m.Type || m.TYPE || '').toUpperCase();
-              return type === 'SENIOR' || type === 'LIFE';
+              return type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR';
             });
             const requiredCount = 2;
             const specialUnits = new Set(['000', '999']);
@@ -2836,7 +2836,7 @@
           });
           const seniors = memberPool.filter(m => {
             const type = String(m.Type || m.TYPE || '').toUpperCase();
-            return type === 'SENIOR' || type === 'LIFE';
+            return type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR';
           });
 
           // Group cadets by unit
@@ -3211,7 +3211,7 @@
           const seniors = memberPool.filter(m => {
             const type = String(m.Type || m.TYPE || '').toUpperCase();
             const status = String(m.MbrStatus || '').toUpperCase();
-            return (type === 'SENIOR' || type === 'LIFE') && status === 'ACTIVE';
+            return (type === 'SENIOR' || type === 'LIFE' || type === 'FIFTY YEAR') && status === 'ACTIVE';
           });
 
           seniors.forEach(senior => {
@@ -4078,7 +4078,7 @@
             const member = (dataFiles.members || []).find(m => String(m.CAPID || '').trim() === String(capid || '').trim());
             if (!member) return null;
             const memberType = (member.Type || member.TYPE || '').toUpperCase();
-            const isSenior = memberType === 'SENIOR' || memberType === 'LIFE';
+            const isSenior = memberType === 'SENIOR' || memberType === 'LIFE' || memberType === 'FIFTY YEAR';
             // Seniors on CAC are advisors - override their position
             const finalPositionType = isSenior ? 'ADVISOR' : positionType;
             const finalPositionLabel = isSenior ? 'Advisor' : positionType.charAt(0) + positionType.slice(1).toLowerCase();
@@ -5081,7 +5081,7 @@
             // Find unassigned senior members
             const unassignedSeniors = unitMembers
               .filter(m => {
-                const isSenior = (m.Type || m.TYPE) === "SENIOR" || (m.Type || m.TYPE) === "LIFE";
+                const isSenior = (m.Type || m.TYPE) === "SENIOR" || (m.Type || m.TYPE) === "LIFE" || (m.Type || m.TYPE) === "FIFTY YEAR";
                 return isSenior && !assignedCAPIDs.has(m.CAPID);
               })
               .map(m => `${m.Rank} ${m.NameLast}, ${m.NameFirst}`)

@@ -206,8 +206,8 @@ function OrgChartSection(props) {
 
                     // Check if members are senior advisors in CAC
                     if (isCACCommittee && memA && memB) {
-                      const isSeniorA = (memA.Type || memA.TYPE) === "SENIOR" || (memA.Type || memA.TYPE) === "LIFE";
-                      const isSeniorB = (memB.Type || memB.TYPE) === "SENIOR" || (memB.Type || memB.TYPE) === "LIFE";
+                      const isSeniorA = (memA.Type || memA.TYPE) === "SENIOR" || (memA.Type || memA.TYPE) === "LIFE" || (memA.Type || memA.TYPE) === "FIFTY YEAR";
+                      const isSeniorB = (memB.Type || memB.TYPE) === "SENIOR" || (memB.Type || memB.TYPE) === "LIFE" || (memB.Type || memB.TYPE) === "FIFTY YEAR";
 
                       // Senior advisors always come first in CAC
                       if (isSeniorA && !isSeniorB) return -1;
@@ -238,7 +238,7 @@ function OrgChartSection(props) {
                         const isAlternate = position.includes('ASSISTANT') || position.includes('ALT');
 
                         // Check if this is a senior member in a Cadet Advisory Council
-                        const isSeniorMember = (member.Type || member.TYPE) === "SENIOR" || (member.Type || member.TYPE) === "LIFE";
+                        const isSeniorMember = (member.Type || member.TYPE) === "SENIOR" || (member.Type || member.TYPE) === "LIFE" || (member.Type || member.TYPE) === "FIFTY YEAR";
                         const isCACCommittee = name.toUpperCase().includes('CADET ADVISORY COUNCIL');
                         const isSeniorAdvisor = isSeniorMember && isCACCommittee;
 

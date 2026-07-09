@@ -43,7 +43,8 @@ const FeedbackTab = ({
       memberCount: members.length || 0,
       seniorCount: members.filter(m =>
         (m.Type || m.TYPE || '').toUpperCase() === 'SENIOR' ||
-        (m.Type || m.TYPE || '').toUpperCase() === 'LIFE'
+        (m.Type || m.TYPE || '').toUpperCase() === 'LIFE' ||
+        (m.Type || m.TYPE || '').toUpperCase() === 'FIFTY YEAR'
       ).length || 0,
       cadetCount: members.filter(m =>
         (m.Type || m.TYPE || '').toUpperCase() === 'CADET'

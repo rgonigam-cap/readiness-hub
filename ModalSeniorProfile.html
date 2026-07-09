@@ -47,7 +47,10 @@ const SeniorProfileModal = ({
       <div className="space-y-4">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-          <div className="text-2xl font-bold">{member.Rank} {member.NameLast}, {member.NameFirst}</div>
+          <div className="flex items-center flex-wrap gap-2">
+            <div className="text-2xl font-bold">{member.Rank} {member.NameLast}, {member.NameFirst}</div>
+            <MemberStatusBadge type={member.Type} />
+          </div>
           <div className="text-sm text-slate-600 mt-1">CAPID: {member.CAPID}</div>
           <div className="text-sm text-slate-600">Unit: {member.memberUnitName}</div>
           <div className="text-sm text-slate-600 mt-1">
